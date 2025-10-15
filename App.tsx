@@ -10,8 +10,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import HomeScreen from './src/screens/HomeScreen';
-import SettingsScreen from './src/screens/SettingsScreen';
+import HomeScreen from './src/screens/Home/HomeScreen';
+import SettingsScreen from './src/screens/Settings/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
 
