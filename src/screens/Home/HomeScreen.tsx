@@ -1,18 +1,12 @@
 import React from 'react';
 import { SafeAreaView, View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useBleMock } from './hooks/useBleMock';
+// Swap mock for real BLE
+import { useBle } from './hooks/useBle';
 import { styles } from './styles';
 import { DeviceList } from './components/DeviceList';
 
 export const HomeScreen: React.FC = () => {
-  const {
-    devices,
-    isScanning,
-    startScan,
-    stopScan,
-    connectToDevice,
-    disconnectDevice,
-  } = useBleMock();
+  const { devices, isScanning, startScan, stopScan, connectToDevice, disconnectDevice } = useBle();
 
   return (
     <SafeAreaView style={styles.container}>
