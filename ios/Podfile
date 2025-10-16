@@ -22,6 +22,12 @@ target 'NokeApp' do
     # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
+  
+  # Test module for validating native integration
+  pod 'TestModule', :path => '../modules/TestModule'
+  
+  # Local Noke BLE Manager module (commented until ready to use)
+  # pod 'NokeBleManager', :path => '../modules/NokeBleManager'
 
   post_install do |installer|
     react_native_post_install(

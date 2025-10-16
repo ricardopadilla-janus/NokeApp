@@ -1,0 +1,28 @@
+{
+  "name": "noke-ble-manager",
+  "version": "1.0.0",
+  "description": "Native BLE module for Noke with Old/New Architecture support",
+  "main": "js/NativeBleManager.ts",
+  "scripts": {},
+  "keywords": [
+    "react-native",
+    "ble",
+    "bluetooth",
+    "turbo-module"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  },
+  "codegenConfig": {
+    "name": "NokeBleManagerSpec",
+    "type": "modules",
+    "jsSrcsDir": "js",
+    "android": {
+      "javaPackageName": "com.nokeblemanager"
+    }
+  }
+}
+

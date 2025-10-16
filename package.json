@@ -41,5 +41,10 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "codegenConfig": {
+    "name": "TestModuleSpec",
+    "type": "modules",
+    "jsSrcsDir": "modules/TestModule/js"
   }
 }
