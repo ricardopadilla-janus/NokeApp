@@ -38,7 +38,7 @@ function App() {
             name="Home"
             component={HomeScreen}
             options={{
-              title: 'Home',
+              title: 'Scan Devices',
               tabBarLabel: 'Home',
             }}
           />

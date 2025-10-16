@@ -34,7 +34,11 @@
 		<true/>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>We use your location to scan for nearby BLE devices.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Bluetooth is required to discover and connect to nearby locks.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Bluetooth access is needed to communicate with BLE devices.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
