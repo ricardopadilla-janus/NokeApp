@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, PermissionsAndroid, Alert } from 'react-native';
-import BleManager, { BleDisconnectPeripheralEvent, BleScanCallbackType, Peripheral } from 'react-native-ble-manager';
-import { NativeEventEmitter, NativeModules } from 'react-native';
+import BleManager, { Peripheral } from 'react-native-ble-manager';
 
 export interface BLEDevice {
   id: string;
@@ -11,8 +10,7 @@ export interface BLEDevice {
   isConnecting: boolean;
 }
 
-const BleManagerModule = NativeModules.BleManager;
-const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
+// Using BleManager's event helpers (RN 0.76+)
 
 export function useBle() {
   const [isScanning, setIsScanning] = useState(false);
@@ -20,15 +18,35 @@ export function useBle() {
   const connectedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    BleManager.start({ showAlert: false });
-    const stopSub = bleManagerEmitter.addListener('BleManagerStopScan', () => setIsScanning(false));
-    const discSub = bleManagerEmitter.addListener('BleManagerDisconnectPeripheral', (event: BleDisconnectPeripheralEvent) => {
-      connectedRef.current.delete(event.peripheral);
-      setDevices(prev => prev.map(d => d.id === event.peripheral ? { ...d, isConnected: false, isConnecting: false } : d));
+    BleManager.start({ showAlert: false }).then(() => {
+      console.log("Module BLEManager initialized");
+    });
+    const stopSub = BleManager.onStopScan(() => setIsScanning(false));
+    const discSub = BleManager.onDisconnectPeripheral(({ peripheral }: any) => {
+      if (!peripheral) return;
+      connectedRef.current.delete(peripheral);
+      setDevices(prev => prev.map(d => d.id === peripheral ? { ...d, isConnected: false, isConnecting: false } : d));
+    });
+    const discoverSub = BleManager.onDiscoverPeripheral((peripheral: Peripheral | any) => {
+      const id = peripheral?.id;
+      if (!id) return;
+      setDevices(prev => {
+        const exists = prev.find(d => d.id === id);
+        const name = peripheral?.name || peripheral?.advertising?.localName || 'Unknown';
+        const updated: BLEDevice = {
+          id,
+          name,
+          rssi: peripheral?.rssi ?? -100,
+          isConnected: connectedRef.current.has(id),
+          isConnecting: false,
+        };
+        return exists ? prev.map(d => (d.id === id ? { ...d, ...updated } : d)) : [...prev, updated];
+      });
     });
     return () => {
       stopSub.remove();
       discSub.remove();
+      discoverSub.remove();
     };
   }, []);
 
@@ -55,27 +73,8 @@ export function useBle() {
     setDevices([]);
     setIsScanning(true);
     try {
-      await BleManager.scan([], 5, true, { numberOfMatches: 1, matchMode: 1, scanMode: 2 } as any);
-      const discoverSub = bleManagerEmitter.addListener('BleManagerDiscoverPeripheral', (peripheral: Peripheral) => {
-        if (!peripheral?.id) return;
-        setDevices(prev => {
-          const exists = prev.find(d => d.id === peripheral.id);
-          const name = peripheral.name || peripheral.advertising?.localName || 'Unknown';
-          const updated: BLEDevice = {
-            id: peripheral.id,
-            name,
-            rssi: peripheral.rssi ?? -100,
-            isConnected: connectedRef.current.has(peripheral.id),
-            isConnecting: false,
-          };
-          return exists ? prev.map(d => (d.id === updated.id ? { ...d, ...updated } : d)) : [...prev, updated];
-        });
-      });
-      // Auto cleanup of discovery listener when scan stops
-      const stopOnce = bleManagerEmitter.addListener('BleManagerStopScan', () => {
-        discoverSub.remove();
-        stopOnce.remove();
-      });
+      console.log("Starting scan");
+      await BleManager.scan([], 12, true);
     } catch (e) {
       setIsScanning(false);
       Alert.alert('Scan error', String(e));
@@ -83,7 +82,10 @@ export function useBle() {
   }, [isScanning, requestPermissions]);
 
   const stopScan = useCallback(async () => {
-    try { await BleManager.stopScan(); } catch {}
+    try { await BleManager.stopScan().then(() => {
+        // Success code
+        console.log("Scan stopped");
+      }); } catch {}
     setIsScanning(false);
   }, []);
 
