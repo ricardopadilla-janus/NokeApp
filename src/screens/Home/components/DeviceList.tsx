@@ -34,12 +34,6 @@ export const DeviceList: React.FC<Props> = ({ devices, isScanning, onConnect, on
     <FlatList
       data={devices}
       keyExtractor={(item) => item.id}
-      ListHeaderComponent={isScanning ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-          <ActivityIndicator size="small" color="#007AFF" />
-          <Text style={{ marginLeft: 8, color: '#666' }}>Scanning...</Text>
-        </View>
-      ) : null}
       renderItem={({ item }) => (
         <DeviceListItem
           device={item}
