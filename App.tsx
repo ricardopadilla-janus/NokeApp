@@ -12,6 +12,7 @@ import { StatusBar, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import HomeScreen from './src/screens/Home/HomeScreen';
 import SettingsScreen from './src/screens/Settings/SettingsScreen';
+import NativeScanScreen from './src/screens/NativeScan/NativeScanScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -40,6 +41,14 @@ function App() {
             options={{
               title: 'Scan Devices',
               tabBarLabel: 'Home',
+            }}
+          />
+          <Tab.Screen
+            name="NativeScan"
+            component={NativeScanScreen}
+            options={{
+              title: 'Native Scan',
+              tabBarLabel: 'Native',
             }}
           />
           <Tab.Screen

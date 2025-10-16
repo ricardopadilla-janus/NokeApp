@@ -1,0 +1,35 @@
+// Placeholder Android build.gradle for future implementation
+
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+  }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+  compileSdkVersion 33
+
+  defaultConfig {
+    minSdkVersion 23
+    targetSdkVersion 33
+  }
+  
+  sourceSets {
+    main {
+      java.srcDirs = ['src/main/java']
+    }
+  }
+}
+
+repositories {
+  mavenCentral()
+  google()
+}
+
+dependencies {
+  implementation 'com.facebook.react:react-native:+'
+}
+
