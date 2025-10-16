@@ -12,6 +12,8 @@
 │  📱 Tab 1: Home (Scan Devices)          │
 │     • Uses: react-native-ble-manager   │
 │     • Features: Full BLE (scan/connect)│
+│     • Search, filter, sort by signal   │
+│     • Live continuous scanning         │
 │     • Status: ✅ Production ready       │
 │                                         │
 │  🔧 Tab 2: Native (Native Scan)         │
