@@ -16,12 +16,24 @@ export function useBle() {
   const [isScanning, setIsScanning] = useState(false);
   const [devices, setDevices] = useState<BLEDevice[]>([]);
   const connectedRef = useRef<Set<string>>(new Set());
+  const wantContinuousScanRef = useRef<boolean>(false);
+  const hasClearedForSessionRef = useRef<boolean>(false);
 
   useEffect(() => {
     BleManager.start({ showAlert: false }).then(() => {
       console.log("Module BLEManager initialized");
     });
-    const stopSub = BleManager.onStopScan(() => setIsScanning(false));
+    const stopSub = BleManager.onStopScan(() => {
+      if (wantContinuousScanRef.current) {
+        // Seamlessly restart scanning without flipping isScanning
+        BleManager.scan([], 8, true).catch(() => {
+          // If restart fails, reflect stopped state
+          setIsScanning(false);
+        });
+      } else {
+        setIsScanning(false);
+      }
+    });
     const discSub = BleManager.onDisconnectPeripheral(({ peripheral }: any) => {
       if (!peripheral) return;
       connectedRef.current.delete(peripheral);
@@ -69,12 +81,16 @@ export function useBle() {
       Alert.alert('Permission required', 'Bluetooth permissions are needed to scan devices.');
       return;
     }
-    if (isScanning) return;
-    setDevices([]);
+    wantContinuousScanRef.current = true;
+    if (!hasClearedForSessionRef.current) {
+      setDevices([]);
+      hasClearedForSessionRef.current = true;
+    }
+    if (isScanning) return; // already scanning
     setIsScanning(true);
     try {
       console.log("Starting scan");
-      await BleManager.scan([], 12, true);
+      await BleManager.scan([], 8, true);
     } catch (e) {
       setIsScanning(false);
       Alert.alert('Scan error', String(e));
@@ -82,10 +98,9 @@ export function useBle() {
   }, [isScanning, requestPermissions]);
 
   const stopScan = useCallback(async () => {
-    try { await BleManager.stopScan().then(() => {
-        // Success code
-        console.log("Scan stopped");
-      }); } catch {}
+    wantContinuousScanRef.current = false;
+    hasClearedForSessionRef.current = false;
+    try { await BleManager.stopScan().then(() => { console.log("Scan stopped"); }); } catch {}
     setIsScanning(false);
   }, []);
 

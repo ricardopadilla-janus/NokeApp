@@ -12,7 +12,7 @@ interface Props {
 }
 
 export const DeviceList: React.FC<Props> = ({ devices, isScanning, onConnect, onDisconnect }) => {
-  if (isScanning) {
+  if (isScanning && devices.length === 0) {
     return (
       <View style={styles.scanningPlaceholder}>
         <ActivityIndicator size="large" color="#007AFF" />
@@ -21,7 +21,7 @@ export const DeviceList: React.FC<Props> = ({ devices, isScanning, onConnect, on
     );
   }
 
-  if (!devices.length) {
+  if (!isScanning && !devices.length) {
     return (
       <View style={styles.emptyState}>
         <Text style={styles.emptyText}>No devices found</Text>
@@ -34,6 +34,12 @@ export const DeviceList: React.FC<Props> = ({ devices, isScanning, onConnect, on
     <FlatList
       data={devices}
       keyExtractor={(item) => item.id}
+      ListHeaderComponent={isScanning ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+          <ActivityIndicator size="small" color="#007AFF" />
+          <Text style={{ marginLeft: 8, color: '#666' }}>Scanning...</Text>
+        </View>
+      ) : null}
       renderItem={({ item }) => (
         <DeviceListItem
           device={item}
