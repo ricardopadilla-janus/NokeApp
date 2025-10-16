@@ -1,0 +1,25 @@
+{
+  "name": "native-scanner",
+  "version": "1.0.0",
+  "description": "Native BLE scanner module (scan only)",
+  "main": "js/NativeScanner.ts",
+  "scripts": {},
+  "keywords": [
+    "react-native",
+    "ble",
+    "scanner",
+    "turbo-module"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  },
+  "codegenConfig": {
+    "name": "NativeScannerSpec",
+    "type": "modules",
+    "jsSrcsDir": "js"
+  }
+}
+

@@ -26,6 +26,9 @@ target 'NokeApp' do
   # Test module for validating native integration
   pod 'TestModule', :path => '../modules/TestModule'
   
+  # Native BLE Scanner (scan only)
+  pod 'NativeScanner', :path => '../modules/NativeScanner'
+  
   # Local Noke BLE Manager module (commented until ready to use)
   # pod 'NokeBleManager', :path => '../modules/NokeBleManager'
 

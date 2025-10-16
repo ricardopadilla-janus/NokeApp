@@ -43,8 +43,20 @@
     "node": ">=20"
   },
   "codegenConfig": {
-    "name": "TestModuleSpec",
-    "type": "modules",
-    "jsSrcsDir": "modules/TestModule/js"
+    "name": "AppSpecs",
+    "type": "all",
+    "jsSrcsDir": ".",
+    "libraries": [
+      {
+        "name": "TestModuleSpec",
+        "type": "modules",
+        "jsSrcsDir": "modules/TestModule/js"
+      },
+      {
+        "name": "NativeScannerSpec",
+        "type": "modules",
+        "jsSrcsDir": "modules/NativeScanner/js"
+      }
+    ]
   }
 }

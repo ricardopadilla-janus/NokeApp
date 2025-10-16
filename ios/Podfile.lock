@@ -8,6 +8,34 @@ PODS:
   - hermes-engine (0.82.0):
     - hermes-engine/Pre-built (= 0.82.0)
   - hermes-engine/Pre-built (0.82.0)
+  - NativeScanner (1.0.0):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
   - RCT-Folly (2024.11.18.00):
     - boost
     - DoubleConversion
@@ -2534,6 +2562,7 @@ DEPENDENCIES:
   - fmt (from `../node_modules/react-native/third-party-podspecs/fmt.podspec`)
   - glog (from `../node_modules/react-native/third-party-podspecs/glog.podspec`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
+  - NativeScanner (from `../modules/NativeScanner`)
   - RCT-Folly (from `../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec`)
   - RCTDeprecation (from `../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)
   - RCTRequired (from `../node_modules/react-native/Libraries/Required`)
@@ -2627,6 +2656,8 @@ EXTERNAL SOURCES:
   hermes-engine:
     :podspec: "../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec"
     :tag: hermes-2025-09-01-RNv0.82.0-265ef62ff3eb7289d17e366664ac0da82303e101
+  NativeScanner:
+    :path: "../modules/NativeScanner"
   RCT-Folly:
     :podspec: "../node_modules/react-native/third-party-podspecs/RCT-Folly.podspec"
   RCTDeprecation:
@@ -2776,6 +2807,7 @@ SPEC CHECKSUMS:
   fmt: a40bb5bd0294ea969aaaba240a927bd33d878cdd
   glog: 5683914934d5b6e4240e497e0f4a3b42d1854183
   hermes-engine: 8642d8f14a548ab718ec112e9bebdfdd154138b5
+  NativeScanner: 87b387526018769be01b71a46ed4f19f2ab135b2
   RCT-Folly: 846fda9475e61ec7bcbf8a3fe81edfcaeb090669
   RCTDeprecation: 22bf66112da540a7d40e536366ddd8557934fca1
   RCTRequired: a0ed4dc41b35f79fbb6d8ba320e06882a8c792cf
@@ -2840,7 +2872,7 @@ SPEC CHECKSUMS:
   React-utils: 96191b0f5e02b57c70a4bbf7b6f6721958e1d369
   React-webperformancenativemodule: 9c76ddf8d1a243e2eecd7ce1aeadb46ceccbdbd2
   ReactAppDependencyProvider: c5c4f5280e4ae0f9f4a739c64c4260fe0b3edaf1
-  ReactCodegen: 500aeb4e8445372647b1771fb91368190b8eaf6b
+  ReactCodegen: f8e92789a58765b271772c60c7dab26cd14684bf
   ReactCommon: 25c7f94aee74ddd93a8287756a8ac0830a309544
   RNBleManager: 3c3d81a0662cfb3abc11d3dbc69bbfb07a6585b6
   RNScreens: 0bbf16c074ae6bb1058a7bf2d1ae017f4306797c
@@ -2848,6 +2880,6 @@ SPEC CHECKSUMS:
   TestModule: 0eab721c659632a45826b1c99a7c1d2548896990
   Yoga: edeb9900b9e5bb5b27b9a6a2d5914e4fe4033c1b
 
-PODFILE CHECKSUM: 72b584a4b23fae93c63ad2cc56f7a59927b9f8b7
+PODFILE CHECKSUM: 428934d1f10c9d9ff377ee3273681e41ef99e133
 
 COCOAPODS: 1.16.2
