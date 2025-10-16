@@ -176,20 +176,28 @@ See detailed steps in `IMPLEMENTATION_SUMMARY.md` section "Steps to Re-enable Mo
 ### Should We Use Native Module?
 
 **Use Custom Native Module IF**:
-- ✅ Need Noke-specific BLE protocols
+- ✅ Need Noke-specific BLE protocols (IoT device control)
+- ✅ Need advanced features (custom GATT services, complex operations)
 - ✅ Want full control over implementation
-- ✅ Existing code has features library doesn't
-- ✅ Performance is critical
+- ✅ Existing code has features library doesn't support
+- ✅ Performance is critical (time-sensitive lock commands)
 - ✅ Long-term maintenance in-house
+- ✅ Need firmware updates over BLE
+- ✅ Complex authentication/security protocols
 
 **Keep Library IF**:
-- ❌ Generic BLE is sufficient
+- ❌ Generic BLE is sufficient (basic scan/connect only)
 - ❌ Limited native development resources
 - ❌ Tight timeline (< 1 week)
-- ❌ No Noke-specific features needed
+- ❌ No IoT-specific features needed
+- ❌ Simple use cases only
 
 **Our Recommendation**: ✅ **Use Custom Native Module**  
-**Reason**: Full Noke protocol support + better performance + full control
+**Reason**: 
+- Noke requires advanced IoT BLE features (likely not supported by generic library)
+- Custom protocols and complex operations need native implementation
+- Full control over security and authentication
+- Better performance for time-critical lock operations
 
 ---
 

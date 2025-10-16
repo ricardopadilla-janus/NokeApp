@@ -121,6 +121,26 @@ All modules support **both** React Native architectures:
 
 ## BLE Implementation Comparison
 
+### Library Limitations for Noke IoT Use Case
+
+**react-native-ble-manager is designed for**:
+- Generic BLE device scanning
+- Basic connection management
+- Standard characteristic read/write
+- Simple notification subscriptions
+
+**Noke Smart Locks likely require**:
+- ✋ Custom GATT profiles and services (not in library)
+- ✋ Complex multi-step unlock sequences (library too simple)
+- ✋ Proprietary authentication protocols (not supported)
+- ✋ Manufacturer-specific data parsing (custom logic needed)
+- ✋ Time-sensitive command sequences (bridge latency issues)
+- ✋ Advanced security handshakes (not in generic API)
+- ✋ Firmware updates over BLE (not standard feature)
+- ✋ Device state synchronization (custom protocol)
+
+**Conclusion**: While the library works for basic BLE operations (current Home tab), advanced Noke features will require native implementation.
+
 ### Current Setup: Three Parallel BLE Solutions
 
 | Feature | Home Tab (Library) | Native Tab (Custom) | Status |
@@ -509,10 +529,32 @@ At any point during migration:
 ### Specific Benefits for Noke
 
 1. **Proprietary Protocol**: Direct access to implement Noke-specific BLE commands
-2. **Performance**: Lower latency for lock operations (critical for UX)
-3. **Debugging**: Full visibility into BLE stack for troubleshooting
-4. **Features**: Can add Noke-specific features not in generic libraries
+   - IoT device control with custom GATT services
+   - Complex characteristic read/write sequences
+   - Noke authentication and security protocols
+   - Lock-specific command sequences
+
+2. **Advanced IoT Features**: Features likely NOT possible with generic library
+   - Custom BLE descriptors and profiles
+   - Manufacturer-specific data parsing
+   - Complex multi-step operations (unlock sequences)
+   - Real-time notifications for lock state changes
+   - Firmware update over BLE
+   - Advanced security handshakes
+
+3. **Performance**: Lower latency for lock operations (critical for UX)
+   - Direct JSI calls vs bridge serialization
+   - Critical for time-sensitive lock commands
+
+4. **Debugging**: Full visibility into BLE stack for troubleshooting
+   - Log every BLE operation
+   - Debug complex protocol interactions
+   - Trace issues in production
+
 5. **Control**: No dependency on third-party release cycles
+   - Fix bugs immediately
+   - Add features as needed
+   - No waiting for maintainer approvals
 
 ---
 
