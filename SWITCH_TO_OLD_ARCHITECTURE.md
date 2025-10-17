@@ -1,62 +1,62 @@
-# Cómo Cambiar a Old Architecture (Para Testing)
+# How to Switch to Old Architecture (For Testing)
 
-## Estado Actual: New Architecture ✅
+## Current State: New Architecture ✅
 
-Actualmente estamos usando:
-- ✅ Turbo Modules (no Nitro Modules)
-- ✅ New Architecture habilitada
-- ✅ JSI para llamadas nativas directas
+We are currently using:
+- ✅ Turbo Modules (not Nitro Modules)
+- ✅ New Architecture enabled
+- ✅ JSI for direct native calls
 
 ---
 
-## Pasos para Probar en Old Architecture
+## Steps to Test in Old Architecture
 
-### 1. Cambiar Configuración Android
+### 1. Change Android Configuration
 
-**Archivo**: `android/gradle.properties`
+**File**: `android/gradle.properties`
 
-**Línea 35**, cambiar de:
+**Line 35**, change from:
 ```properties
 newArchEnabled=true
 ```
 
-A:
+To:
 ```properties
 newArchEnabled=false
 ```
 
-### 2. Cambiar Configuración iOS
+### 2. Change iOS Configuration
 
-**Archivo**: `ios/NokeApp/Info.plist`
+**File**: `ios/NokeApp/Info.plist`
 
-Buscar la clave `RCTNewArchEnabled` y cambiar a `false`:
+Find the `RCTNewArchEnabled` key and change to `false`:
 
 ```xml
 <key>RCTNewArchEnabled</key>
 <false/>
 ```
 
-**Nota**: Actualmente tu Info.plist tiene `<true/>` en línea 39.
+**Note**: Currently your Info.plist has `<true/>` on line 39.
 
-### 3. Limpiar Todo
+### 3. Clean Everything
 
 ```bash
-# Limpiar Android
+# Clean Android
 cd android
 ./gradlew clean
 cd ..
 
-# Limpiar iOS
+# Clean iOS
 cd ios
 rm -rf build Pods Podfile.lock
 pod install
 cd ..
 
-# Limpiar Metro cache
+# Clean Metro cache
 rm -rf $TMPDIR/metro-* $TMPDIR/haste-*
 watchman watch-del-all
 
-# Limpiar Xcode DerivedData
+# Clean Xcode DerivedData
 rm -rf ~/Library/Developer/Xcode/DerivedData/NokeApp-*
 ```
 
@@ -70,56 +70,56 @@ npm run ios
 npm run android
 ```
 
-### 5. Verificar que cambió
+### 5. Verify the Change
 
-**En los logs de compilación deberías ver**:
+**In build logs you should see**:
 
 **Old Architecture (Bridge)**:
-- NO verás mensajes de "Configuring the target with the New Architecture"
-- NO se generarán archivos `*JSI.cpp`
-- Los módulos usan `RCTBridge` en lugar de JSI
+- You will NOT see messages about "Configuring the target with the New Architecture"
+- `*JSI.cpp` files will NOT be generated
+- Modules use `RCTBridge` instead of JSI
 
 **New Architecture (Turbo)**:
-- SÍ verás "Configuring the target with the New Architecture"
-- SÍ se generan archivos `NativeScannerSpecJSI-generated.cpp`
-- Los módulos usan JSI
+- You WILL see "Configuring the target with the New Architecture"
+- `NativeScannerSpecJSI-generated.cpp` files ARE generated
+- Modules use JSI
 
 ---
 
-## ¿Qué Cambia en el Comportamiento?
+## What Changes in Behavior?
 
-### Lo que NO cambia (tu código)
+### What DOES NOT change (your code)
 
 ```typescript
-// JavaScript - EXACTAMENTE IGUAL
+// JavaScript - EXACTLY THE SAME
 import NativeScanner from './modules/NativeScanner/js';
-await NativeScanner.startScan(10);  // Funciona igual
+await NativeScanner.startScan(10);  // Works the same
 ```
 
-### Lo que SÍ cambia (interno)
+### What DOES change (internal)
 
-| Aspecto | New Arch | Old Arch |
+| Aspect | New Arch | Old Arch |
 |---------|----------|----------|
-| **Comunicación** | JSI (directo) | Bridge (serializado) |
-| **Performance** | Más rápida | Un poco más lenta |
-| **Compilación** | Genera JSI wrappers | Usa RCTBridge |
+| **Communication** | JSI (direct) | Bridge (serialized) |
+| **Performance** | Faster | Slightly slower |
+| **Compilation** | Generates JSI wrappers | Uses RCTBridge |
 | **Logs** | `[Turbo]` | `[Bridge]` |
 
 ### Testing Checklist
 
-Cuando cambies a Old Architecture, prueba:
+When you switch to Old Architecture, test:
 
-- [ ] Home tab: BLE scanning funciona
-- [ ] Native tab: NativeScanner funciona
-- [ ] Settings tab: TestModule funciona
-- [ ] No hay crashes
-- [ ] Performance aceptable
+- [ ] Home tab: BLE scanning works
+- [ ] Native tab: NativeScanner works
+- [ ] Settings tab: TestModule works
+- [ ] No crashes
+- [ ] Acceptable performance
 
 ---
 
-## Para Regresar a New Architecture
+## To Return to New Architecture
 
-### Mismo proceso pero inverso:
+### Same process but reversed:
 
 **Android** - `android/gradle.properties`:
 ```properties
@@ -132,76 +132,75 @@ newArchEnabled=true
 <true/>
 ```
 
-Luego limpiar y rebuild.
+Then clean and rebuild.
 
 ---
 
-## ¿Por qué probar ambas?
+## Why Test Both?
 
-### Razones para testing:
+### Reasons for testing:
 
-1. **Validación**: Confirmar que nuestro código híbrido funciona en ambas
-2. **Debugging**: Si hay bug en New Arch, probar en Old
-3. **Comparación**: Medir diferencia de performance
-4. **Confianza**: Saber que tenemos fallback funcional
+1. **Validation**: Confirm our hybrid code works on both
+2. **Debugging**: If there's a bug in New Arch, test in Old
+3. **Comparison**: Measure performance difference
+4. **Confidence**: Know we have a working fallback
 
-### Nuestra recomendación
+### Our Recommendation
 
-**Mantener New Architecture** salvo que:
-- ❌ Encuentres bugs críticos específicos de New Arch
-- ❌ Alguna librería de terceros no sea compatible
-- ❌ Problemas de performance (poco probable)
+**Keep New Architecture** unless:
+- ❌ You find critical bugs specific to New Arch
+- ❌ Some third-party library is incompatible
+- ❌ Performance issues (unlikely)
 
 ---
 
-## Respuesta a tus preguntas
+## Answers to Your Questions
 
-### "¿Usamos Nitro o Turbo?"
+### "Are we using Nitro or Turbo?"
 
-**Respuesta**: TURBO MODULES (oficial)
+**Answer**: TURBO MODULES (official)
 
-- ✅ Turbo Modules = Sistema de Meta/React Native
-- ❌ Nitro Modules = NO (es de Marc Rousavy, experimental)
+- ✅ Turbo Modules = Meta/React Native system
+- ❌ Nitro Modules = NO (Marc Rousavy's, experimental)
 
-**Evidencia en código**:
+**Evidence in code**:
 ```typescript
 // modules/*/js/Native*.ts
 import { TurboModuleRegistry } from 'react-native';
-//        ^^^^^ Turbo, no Nitro
+//        ^^^^^ Turbo, not Nitro
 ```
 
-### "¿Cómo probar Old Architecture?"
+### "How to test Old Architecture?"
 
-**Respuesta**: Cambiar flags y rebuild (pasos arriba)
+**Answer**: Change flags and rebuild (steps above)
 
-**Importante**:
-- Tu código NO cambia
-- Solo configuración del proyecto
-- Debe funcionar en ambas (ya está preparado)
-- Actualmente: New Arch (mejor performance)
+**Important**:
+- Your code does NOT change
+- Only project configuration
+- Should work on both (already prepared)
+- Currently: New Arch (better performance)
 
 ---
 
-## Estado Actual del Proyecto
+## Current Project State
 
 ```
 NokeApp
 ├── Architecture: NEW (Turbo Modules)
-├── Native Modules: Turbo (no Nitro)
+├── Native Modules: Turbo (not Nitro)
 ├── Compatible: New + Old (hybrid code)
 └── Recommendation: Keep NEW
 ```
 
-**¿Necesitas cambiar a Old?**
-- Solo para testing/validación
-- Volver a New después
-- No necesario para funcionalidad
+**Do you need to switch to Old?**
+- Only for testing/validation
+- Switch back to New afterwards
+- Not necessary for functionality
 
 ---
 
 **TL;DR**:
-- Usamos Turbo (oficial), no Nitro (experimental)
-- Estamos en New Architecture (mejor)
-- Para probar Old: cambiar 2 flags y rebuild
-- Nuestro código funciona en ambas automáticamente
-
+- We use Turbo (official), not Nitro (experimental)
+- We're on New Architecture (better)
+- To test Old: change 2 flags and rebuild
+- Our code works on both automatically

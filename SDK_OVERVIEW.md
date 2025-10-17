@@ -1,172 +1,172 @@
-# Noke React Native SDK - Overview para Manager
+# Noke React Native SDK - Manager Overview
 
-## 🎯 Objetivo del Proyecto
+## 🎯 Project Objective
 
-Crear **SDK de React Native** (2 paquetes NPM) para que terceros integren cerraduras Noke en sus apps.
+Create **React Native SDK** (2 NPM packages) for third parties to integrate Noke Smart Locks into their apps.
 
 ---
 
-## 📦 Productos Finales
+## 📦 Final Products
 
-### 1. @noke/ble-manager (Librería BLE Nativa)
+### 1. @noke/ble-manager (Native BLE Library)
 
-**Qué es**: Módulo nativo con lógica BLE y protocolos Noke  
-**Sin UI**: Solo funcionalidad, el cliente pone su propia UI si quiere  
-**Plataformas**: iOS + Android  
+**What it is**: Native module with BLE logic and Noke protocols  
+**No UI**: Just functionality, client provides their own UI if they want  
+**Platforms**: iOS + Android  
 
 ```bash
-# El cliente instala:
+# Client installs:
 npm install @noke/ble-manager
 ```
 
 ```typescript
-// El cliente usa:
+// Client uses:
 import NokeBLE from '@noke/ble-manager';
 await NokeBLE.startScan();
 await NokeBLE.unlock(deviceId);
 ```
 
-### 2. @noke/ui-components (Componentes UI)
+### 2. @noke/ui-components (UI Components)
 
-**Qué es**: Pantallas y componentes pre-construidos de React Native  
-**Opcional**: El cliente puede usarlos o hacer su propia UI  
-**Depende de**: @noke/ble-manager  
+**What it is**: Pre-built React Native screens and components  
+**Optional**: Client can use them or build their own UI  
+**Depends on**: @noke/ble-manager  
 
 ```bash
-# El cliente instala:
+# Client installs:
 npm install @noke/ble-manager @noke/ui-components
 ```
 
 ```typescript
-// El cliente usa pantalla completa:
+// Client uses complete screen:
 import { NokeScanScreen } from '@noke/ui-components';
-<NokeScanScreen />  // ¡Listo! Funciona de inmediato
+<NokeScanScreen />  // Ready! Works immediately
 ```
 
 ---
 
-## ✅ Por Qué Soportar Ambas Arquitecturas
+## ✅ Why Support Both Architectures
 
-### El Problema
+### The Problem
 
-**No sabemos qué React Native usa el cliente**:
-- Algunos tienen RN 0.68 → Old Architecture
-- Algunos tienen RN 0.76 → New Architecture
-- No podemos pedirles que actualicen su proyecto
+**We don't know which React Native the client uses**:
+- Some have RN 0.68 → Old Architecture
+- Some have RN 0.76 → New Architecture
+- We can't ask them to update their project
 
-### La Solución
+### The Solution
 
-**Código híbrido que funciona en AMBAS**:
+**Hybrid code that works on BOTH**:
 
 ```objective-c
-// Nuestro código nativo tiene ambas implementaciones
-RCT_EXPORT_METHOD(...)  // Funciona siempre
+// Our native code has both implementations
+RCT_EXPORT_METHOD(...)  // Always works
 
 #ifdef RCT_NEW_ARCH_ENABLED
-  getTurboModule()      // Solo si cliente tiene New Arch
+  getTurboModule()      // Only if client has New Arch
 #endif
 ```
 
-**Resultado**:
-- Cliente con Old Arch → Usa Bridge (funciona)
-- Cliente con New Arch → Usa Turbo (más rápido)
-- **Mismo paquete NPM para ambos**
+**Result**:
+- Client with Old Arch → Uses Bridge (works)
+- Client with New Arch → Uses Turbo (faster)
+- **Same NPM package for both**
 
-### Decisión: NO depende de nosotros
+### Decision: NOT up to us
 
-**Depende del proyecto del CLIENTE**:
+**Depends on the CLIENT's project**:
 
-| Cliente tiene | Nuestra librería usa |
+| Client has | Our library uses |
 |---------------|---------------------|
-| RN 0.60-0.75 (Old) | Bridge automáticamente |
-| RN 0.76+ (New) | Turbo automáticamente |
+| RN 0.60-0.75 (Old) | Bridge automatically |
+| RN 0.76+ (New) | Turbo automatically |
 
-**Se adapta sola** al detectar el flag `newArchEnabled` del cliente.
+**It adapts itself** by detecting the client's `newArchEnabled` flag.
 
 ---
 
-## 🔧 NokeApp = Proyecto de Desarrollo
+## 🔧 NokeApp = Development Project
 
-### NokeApp NO es el producto final
+### NokeApp is NOT the final product
 
-**NokeApp es**:
-- Proyecto de desarrollo y testing
-- Sandbox para probar features
-- Demo para mostrar a clientes
-- Eventualmente se convierte en "example app"
+**NokeApp is**:
+- Development and testing project
+- Sandbox to test features
+- Demo to show clients
+- Eventually becomes "example app"
 
-**Los productos finales son**:
+**The final products are**:
 - Package 1: @noke/ble-manager
 - Package 2: @noke/ui-components
 
-### Estructura actual vs futura
+### Current vs Future Structure
 
-**Actual (desarrollo)**:
+**Current (development)**:
 ```
 NokeApp/
-├── modules/NokeBleManager/  → Será @noke/ble-manager
-├── src/screens/Home/        → Será @noke/ui-components
-└── Todo en un proyecto
+├── modules/NokeBleManager/  → Will be @noke/ble-manager
+├── src/screens/Home/        → Will be @noke/ui-components
+└── Everything in one project
 ```
 
-**Futuro (distribución)**:
+**Future (distribution)**:
 ```
-3 repositorios:
+3 repositories:
 ├── noke-ble-manager/      → npm package 1
 ├── noke-ui-components/    → npm package 2
-└── noke-demo-app/         → NokeApp (ejemplo)
+└── noke-demo-app/         → NokeApp (example)
 ```
 
 ---
 
-## ⏱️ Timeline Actualizado
+## ⏱️ Updated Timeline
 
-### Fase 1-2: Desarrollo (3-4 semanas)
-- Completar funcionalidad BLE
-- Importar código nativo existente
-- Pulir UI components
-- **Output**: Todo funcionando en NokeApp
+### Phase 1-2: Development (3-4 weeks)
+- Complete BLE functionality
+- Import existing native code
+- Polish UI components
+- **Output**: Everything working in NokeApp
 
-### Fase 3: Extracción a Packages (1 semana)
-- Crear estructura de packages
-- Mover código a paquetes separados
-- Configurar monorepo
-- **Output**: 2 paquetes NPM listos
+### Phase 3: Extract to Packages (1 week)
+- Create package structure
+- Move code to separate packages
+- Configure monorepo
+- **Output**: 2 NPM packages ready
 
-### Fase 4: Testing de Compatibilidad (1 semana)
-- Crear proyecto demo RN 0.68 (Old Arch)
-- Crear proyecto demo RN 0.76 (New Arch)
-- Instalar paquetes en ambos
-- Validar que funcionan
-- **Output**: Garantía de compatibilidad
+### Phase 4: Compatibility Testing (1 week)
+- Create demo project RN 0.68 (Old Arch)
+- Create demo project RN 0.76 (New Arch)
+- Install packages in both
+- Validate they work
+- **Output**: Compatibility guarantee
 
-### Fase 5: Integración Cliente (1 semana)
-- Cliente instala packages
-- Soporte durante integración
-- Fix de issues
-- **Output**: Cliente usando SDK en producción
+### Phase 5: Client Integration (1 week)
+- Client installs packages
+- Support during integration
+- Fix issues
+- **Output**: Client using SDK in production
 
-**Total: 6-7 semanas**
+**Total: 6-7 weeks**
 
 ---
 
-## 🎯 Integración del Cliente (Caso de Uso Real)
+## 🎯 Client Integration (Real Use Case)
 
-### Escenario: Cliente quiere agregar Noke a su app
+### Scenario: Client wants to add Noke to their app
 
-**Cliente tiene**: App React Native existente (RN 0.72, Old Arch)
+**Client has**: Existing React Native app (RN 0.72, Old Arch)
 
-**Pasos del cliente**:
+**Client steps**:
 
 ```bash
-# 1. Instalar (2 minutos)
+# 1. Install (2 minutes)
 npm install @noke/ble-manager @noke/ui-components
 cd ios && pod install
 
-# 2. Agregar permisos iOS (2 minutos)
-# (Copiamos de nuestra docs)
+# 2. Add iOS permissions (2 minutes)
+# (We provide in our docs)
 
-# 3. Usar en código (5 minutos)
+# 3. Use in code (5 minutes)
 import { NokeScanScreen } from '@noke/ui-components';
 
 function App() {
@@ -176,149 +176,148 @@ function App() {
 }
 ```
 
-**Tiempo total de integración**: < 30 minutos  
-**Resultado**: App del cliente puede escanear y desbloquear Nokes
+**Total integration time**: < 30 minutes  
+**Result**: Client's app can scan and unlock Nokes
 
 ---
 
-## ✅ Ventajas de Nuestra Solución
+## ✅ Advantages of Our Solution
 
-### vs. Otras Librerías BLE
+### vs. Other BLE Libraries
 
-| Característica | Otras librerías | Noke SDK |
+| Feature | Other libraries | Noke SDK |
 |----------------|-----------------|----------|
-| Soporte Old Arch | ⚠️ Algunas | ✅ Sí |
-| Soporte New Arch | ⚠️ Algunas | ✅ Sí |
-| Protocolos Noke | ❌ No | ✅ Sí |
-| UI incluida | ❌ No | ✅ Opcional |
-| Fácil integración | ⚠️ Media | ✅ 30 min |
+| Old Arch support | ⚠️ Some | ✅ Yes |
+| New Arch support | ⚠️ Some | ✅ Yes |
+| Noke protocols | ❌ No | ✅ Yes |
+| UI included | ❌ No | ✅ Optional |
+| Easy integration | ⚠️ Medium | ✅ 30 min |
 
-### Valor para el Cliente
+### Value for Client
 
-✅ **Plug & Play**: Instalar package y funciona  
-✅ **Flexible**: Usar UI propia o la nuestra  
-✅ **Compatible**: Funciona con su versión de RN  
-✅ **Soporte**: Documentación y ejemplos completos  
-✅ **Performance**: Optimizado (Turbo si pueden, Bridge si no)  
-
----
-
-## 📋 Decisiones Técnicas Clave
-
-### 1. ¿Old o New Architecture?
-
-**Decisión**: AMBAS (código híbrido)
-
-**Razón**: No sabemos qué usa el cliente. Debe funcionar para todos.
-
-**Cómo**: Compilación condicional (`#ifdef`). Se adapta automáticamente.
-
-### 2. ¿1 o 2 Packages?
-
-**Decisión**: 2 packages separados
-
-**Razón**:
-- Cliente puede querer solo BLE (su propia UI)
-- Actualizaciones UI no requieren recompilar nativo
-- Bundles más pequeños
-- Separación de concerns
-
-### 3. ¿Turbo Modules o Nitro?
-
-**Decisión**: Turbo Modules (oficial de RN)
-
-**Razón**:
-- Oficial y soportado por Meta
-- Mejor documentación
-- Más estable que Nitro
-- Compatible con Old Arch también
-
-### 4. ¿Monorepo o Repos separados?
-
-**Decisión**: Empezar monorepo, separar después
-
-**Razón**:
-- Desarrollo más rápido ahora
-- Fácil testing conjunto
-- Separar cuando estemos listos para publicar
+✅ **Plug & Play**: Install package and it works  
+✅ **Flexible**: Use their own UI or ours  
+✅ **Compatible**: Works with their RN version  
+✅ **Support**: Complete docs and examples  
+✅ **Performance**: Optimized (Turbo if they can, Bridge if not)  
 
 ---
 
-## 🚀 Valor de Negocio
+## 📋 Key Technical Decisions
 
-### Para Noke
+### 1. Old or New Architecture?
 
-- **Producto**: SDK reutilizable
-- **Mercado**: Cualquier app React Native
-- **Escalable**: Múltiples clientes, un SDK
-- **Ingresos**: Potencial licenciamiento
+**Decision**: BOTH (hybrid code)
 
-### Para el Cliente
+**Reason**: We don't know what the client uses. Must work for everyone.
 
-- **Ahorro**: 30 min vs 2-3 semanas de desarrollo
-- **Calidad**: Código probado y mantenido por Noke
-- **Soporte**: Documentación y actualizaciones
-- **Flexibilidad**: Pueden customizar lo que necesiten
+**How**: Conditional compilation (`#ifdef`). Adapts automatically.
 
----
+### 2. 1 or 2 Packages?
 
-## Preguntas Frecuentes
+**Decision**: 2 separate packages
 
-### "¿El cliente necesita saber de arquitecturas?"
+**Reason**:
+- Client may want only BLE (their own UI)
+- UI updates don't require recompiling native
+- Smaller bundles
+- Separation of concerns
 
-**NO**. Nuestra librería se adapta automáticamente. Es transparente para ellos.
+### 3. Turbo Modules or Nitro?
 
-### "¿Funciona si el cliente tiene RN viejo?"
+**Decision**: Turbo Modules (official from RN)
 
-**SÍ**. Soportamos desde RN 0.60+ (Old Architecture).
+**Reason**:
+- Official and supported by Meta
+- Better documentation
+- More stable than Nitro
+- Also compatible with Old Arch
 
-### "¿Y si actualizan a RN nuevo?"
+### 4. Monorepo or Separate Repos?
 
-**Sigue funcionando**. Se adapta automáticamente a New Architecture (más rápido).
+**Decision**: Start monorepo, separate later
 
-### "¿Tienen que usar nuestra UI?"
-
-**NO**. Pueden:
-- Opción A: Usar nuestros componentes (rápido)
-- Opción B: Usar solo BLE y hacer su UI (flexible)
-- Opción C: Mix (algunos componentes nuestros, otros propios)
-
-### "¿Cómo probamos compatibilidad?"
-
-**Testing en**:
-- NokeApp con New Arch (actual)
-- Proyecto demo con Old Arch (RN 0.68)
-- Proyecto demo con New Arch (RN 0.76)
+**Reason**:
+- Faster development now
+- Easy joint testing
+- Separate when ready to publish
 
 ---
 
-## Próximos Pasos
+## 🚀 Business Value
 
-### Esta Semana
-1. ✅ Completar funcionalidad en NokeApp
-2. ✅ Validar arquitectura híbrida
-3. 📋 Presentar a manager
-4. 🎯 Obtener aprobación
+### For Noke
 
-### Semanas 2-3
-1. Importar código BLE nativo existente
-2. Completar todas las features
-3. Testing exhaustivo
+- **Product**: Reusable SDK
+- **Market**: Any React Native app
+- **Scalable**: Multiple clients, one SDK
+- **Revenue**: Potential licensing
 
-### Semanas 4-5
-1. Extraer a packages NPM
-2. Crear documentación para clientes
-3. Testing de compatibilidad
+### For Client
 
-### Semana 6
-1. Entregar a primer cliente
-2. Soporte de integración
-3. Ajustes finales
+- **Savings**: 30 min vs 2-3 weeks of development
+- **Quality**: Tested and maintained code by Noke
+- **Support**: Documentation and updates
+- **Flexibility**: Can customize what they need
 
 ---
 
-**Recomendación**: ✅ Proceder con desarrollo de SDK  
-**Justificación**: Código híbrido garantiza compatibilidad universal  
-**Timeline**: 6-7 semanas hasta SDK en producción  
-**Riesgo**: Bajo (estrategia validada, fallbacks en lugar)
+## Frequently Asked Questions
 
+### "Does the client need to know about architectures?"
+
+**NO**. Our library adapts automatically. It's transparent to them.
+
+### "Does it work if the client has old RN?"
+
+**YES**. We support from RN 0.60+ (Old Architecture).
+
+### "What if they update to new RN?"
+
+**It keeps working**. Automatically adapts to New Architecture (faster).
+
+### "Do they have to use our UI?"
+
+**NO**. They can:
+- Option A: Use our components (fast)
+- Option B: Use only BLE and build their UI (flexible)
+- Option C: Mix (some of our components, others their own)
+
+### "How do we test compatibility?"
+
+**Testing on**:
+- NokeApp with New Arch (current)
+- Demo project with Old Arch (RN 0.68)
+- Demo project with New Arch (RN 0.76)
+
+---
+
+## Next Steps
+
+### This Week
+1. ✅ Complete functionality in NokeApp
+2. ✅ Validate hybrid architecture
+3. 📋 Present to manager
+4. 🎯 Get approval
+
+### Weeks 2-3
+1. Import existing native BLE code
+2. Complete all features
+3. Exhaustive testing
+
+### Weeks 4-5
+1. Extract to NPM packages
+2. Create client documentation
+3. Compatibility testing
+
+### Week 6
+1. Deliver to first client
+2. Integration support
+3. Final adjustments
+
+---
+
+**Recommendation**: ✅ Proceed with SDK development  
+**Justification**: Hybrid code guarantees universal compatibility  
+**Timeline**: 6-7 weeks to SDK in production  
+**Risk**: Low (validated strategy, fallbacks in place)

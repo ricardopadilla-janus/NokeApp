@@ -142,6 +142,8 @@ Simple native module for infrastructure validation.
 ### NativeScanner (Active)
 Native BLE scanning using CoreBluetooth directly.
 
+**Implementation**: Swift (modules/NativeScanner/ios/NativeScanner.swift)
+
 **Methods**:
 - `startScan(seconds)` - Start BLE scan
 - `stopScan()` - Stop scanning

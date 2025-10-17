@@ -12,7 +12,8 @@ Pod::Spec.new do |s|
   s.platforms    = { :ios => "13.0" }
   s.source       = { :git => "https://github.com/yourusername/NokeApp.git", :tag => "#{s.version}" }
 
-  s.source_files = "ios/**/*.{h,m,mm}"
+  s.source_files = "ios/**/*.{h,m,mm,swift}"
+  s.swift_version = "5.0"
   
   # Use install_modules_dependencies helper
   if respond_to?(:install_modules_dependencies, true)
@@ -25,13 +26,18 @@ Pod::Spec.new do |s|
       s.compiler_flags = folly_compiler_flags + " -DRCT_NEW_ARCH_ENABLED=1"
       s.pod_target_xcconfig    = {
           "HEADER_SEARCH_PATHS" => "\"$(PODS_ROOT)/boost\"",
-          "CLANG_CXX_LANGUAGE_STANDARD" => "c++17"
+          "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
+          "DEFINES_MODULE" => "YES"
       }
       s.dependency "React-Codegen"
       s.dependency "RCT-Folly"
       s.dependency "RCTRequired"
       s.dependency "RCTTypeSafety"
       s.dependency "ReactCommon/turbomodule/core"
+    else
+      s.pod_target_xcconfig = {
+          "DEFINES_MODULE" => "YES"
+      }
     end
   end
 end
