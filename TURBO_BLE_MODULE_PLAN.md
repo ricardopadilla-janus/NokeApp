@@ -123,6 +123,8 @@ All core infrastructure is in place:
 - Module folder structure created
 - TypeScript Turbo Module spec defined
 - iOS native implementation with CoreBluetooth
+  - **NativeScanner**: Implemented in Swift (clean, modern implementation)
+  - **NokeBleManager**: Placeholder uses Objective-C++ pattern (for future migration)
 - Podspec configured and installed successfully
 - Codegen generated native code
 - BLE Service facade created with toggle mechanism

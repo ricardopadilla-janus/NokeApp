@@ -218,10 +218,11 @@ Copy relevant files from existing project:
 - Constants and configurations
 
 ### Step 2.3: Integration
-Merge existing code into `modules/NativeScanner/ios/NativeScanner.mm`:
-- Replace basic CoreBluetooth with production code
+Merge existing code into `modules/NativeScanner/ios/NativeScanner.swift`:
+- Replace basic CoreBluetooth with production code (currently Swift-based)
 - Keep the same exported methods (startScan, stopScan)
 - Maintain event emission for JavaScript
+- Note: NativeScanner is implemented in Swift; if existing code is Objective-C, port or bridge accordingly
 
 ### Step 2.4: Testing
 - Compare behavior against react-native-ble-manager (Home tab)
@@ -316,9 +317,10 @@ JavaScript → JSI (Direct Call) → Native → JSI → JavaScript
    - Creates `NativeScannerSpecJSI` JSI wrapper
    - Generates type-safe interfaces
 
-3. **iOS Implements Protocol** (`NativeScanner.mm`)
-   ```objective-c
-   @interface NativeScanner : RCTEventEmitter <NativeScannerSpec>
+3. **iOS Implements Protocol** (`NativeScanner.swift`)
+   ```swift
+   @objc(NativeScanner)
+   class NativeScanner: RCTEventEmitter, CBCentralManagerDelegate
    ```
 
 4. **JavaScript Calls Native** (seamless)
@@ -392,11 +394,15 @@ modules/[ModuleName]/
 │   ├── Native[ModuleName].ts  # Turbo Module spec
 │   └── index.ts               # Module wrapper
 ├── ios/
-│   ├── [ModuleName].h         # Header (protocol conformance)
-│   └── [ModuleName].mm        # Implementation (CoreBluetooth, etc.)
+│   ├── [ModuleName].swift     # Swift implementation (e.g., NativeScanner)
+│   │   OR
+│   ├── [ModuleName].h/.mm     # Objective-C++ implementation (e.g., NokeBleManager)
+│   └── [ModuleName]-Bridging-Header.h  # Swift bridging header (if Swift)
 ├── package.json               # codegenConfig
 └── [ModuleName].podspec       # iOS pod specification
 ```
+
+**Note**: NativeScanner uses Swift; NokeBleManager uses Objective-C++. Both work with React Native's architecture.
 
 ---
 
@@ -697,7 +703,7 @@ If available:
 ### For Development
 
 1. **Code Access**: Can we get the existing iOS BLE code?
-2. **Language**: Is it Swift or Objective-C?
+2. **Language**: Is it Swift or Objective-C? (Note: NativeScanner is now Swift-based)
 3. **Dependencies**: Does it use any third-party frameworks?
 4. **Known Issues**: What bugs exist in current implementation?
 5. **Testing**: How was the existing code tested?

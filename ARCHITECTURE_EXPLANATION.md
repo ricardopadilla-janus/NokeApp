@@ -1,139 +1,154 @@
-# React Native Architecture: Old vs New - Explicación Simple
+# React Native Architecture: Old vs New - Simple Explanation
 
-## ¿Qué es esto de Old y New Architecture?
+## What is this Old vs New Architecture thing?
 
-React Native tiene dos formas de comunicar JavaScript con código nativo. Piensa en ellas como dos sistemas de mensajería diferentes.
+React Native has two ways to communicate JavaScript with native code. Think of them as two different messaging systems.
 
 ---
 
-## Old Architecture (Bridge) - El sistema tradicional
+## Old Architecture (Bridge) - The traditional system
 
-### ¿Cómo funciona?
+### How does it work?
 
 ```
 JavaScript                     Native (iOS/Android)
     |                               |
-    |  "Llama función X"            |
-    |  (convierte a JSON)           |
+    |  "Call function X"            |
+    |  (convert to JSON)            |
     |------------------------------>|
     |         BRIDGE                |
-    |  (serialización/cola)         |
+    |  (serialization/queue)        |
     |                               |
-    |                          Ejecuta X
+    |                          Execute X
     |                               |
-    |     Resultado (JSON)          |
+    |     Result (JSON)             |
     |<------------------------------|
     |         BRIDGE                |
-    |  (deserialización)            |
+    |  (deserialization)            |
     |                               |
-Muestra resultado
+Show result
 ```
 
-**Problema**: Todo se serializa a JSON, pasa por una cola, y es asíncrono. Lento para operaciones frecuentes.
+**Problem**: Everything is serialized to JSON, passes through a queue, and is asynchronous. Slow for frequent operations.
 
 ---
 
-## New Architecture (JSI/Turbo Modules) - El sistema moderno
+## New Architecture (JSI/Turbo Modules) - The modern system
 
-### ¿Cómo funciona?
+### How does it work?
 
 ```
 JavaScript                     Native (iOS/Android)
     |                               |
-    |  Llama función X              |
-    |  (llamada directa)            |
-    |==============================>|  (JSI - memoria compartida)
-    |      SIN SERIALIZACIÓN        |
+    |  Call function X              |
+    |  (direct call)                |
+    |==============================>|  (JSI - shared memory)
+    |      NO SERIALIZATION         |
     |                               |
-    |                          Ejecuta X
+    |                          Execute X
     |                               |
-    |     Resultado (directo)       |
-    |<==============================|  (JSI - sin conversión)
+    |     Result (direct)           |
+    |<==============================|  (JSI - no conversion)
     |                               |
-Muestra resultado
+Show result
 ```
 
-**Ventaja**: Llamadas directas, sin serialización, puede ser síncrono. Mucho más rápido.
+**Advantage**: Direct calls, no serialization, can be synchronous. Much faster.
 
 ---
 
-## ¿Cómo funciona nuestro código en AMBAS?
+## How does our code work in BOTH?
 
-### Compilación Condicional
+### Conditional Compilation
 
-Nuestros módulos tienen **dos implementaciones en el mismo archivo**:
+Our modules have **two implementations in the same file**:
 
+**Note**: NativeScanner is implemented in **Swift** with bridging to React Native, while other modules may use Objective-C. The hybrid architecture concept applies to both languages.
+
+**Conceptual example with Objective-C module**:
 ```objective-c
-// modules/NativeScanner/ios/NativeScanner.h
+// Example: modules/SomeModule/ios/SomeModule.h
 
 #ifdef RCT_NEW_ARCH_ENABLED
-  // 👇 Versión Nueva Arquitectura
-  #import <NativeScannerSpec/NativeScannerSpec.h>
-  @interface NativeScanner : RCTEventEmitter <NativeScannerSpec>
+  // 👇 New Architecture version
+  #import <SomeModuleSpec/SomeModuleSpec.h>
+  @interface SomeModule : RCTEventEmitter <SomeModuleSpec>
 #else
-  // 👇 Versión Old Architecture
-  @interface NativeScanner : RCTEventEmitter <RCTBridgeModule>
+  // 👇 Old Architecture version
+  @interface SomeModule : RCTEventEmitter <RCTBridgeModule>
 #endif
 ```
 
-**¿Qué significa esto?**
+**NativeScanner (Swift)**:
+```swift
+// modules/NativeScanner/ios/NativeScanner.swift
 
-- Si `RCT_NEW_ARCH_ENABLED` está activo → Usa Turbo Module
-- Si NO está activo → Usa Bridge tradicional
-- **El mismo código funciona para ambas**
-
-### En el archivo .mm
-
-```objective-c
-// modules/NativeScanner/ios/NativeScanner.mm
-
-// Este método se exporta SIEMPRE (ambas arquitecturas)
-RCT_EXPORT_METHOD(startScan:(double)seconds
-                  resolve:(RCTPromiseResolveBlock)resolve
-                  reject:(RCTPromiseRejectBlock)reject) {
-    // Código que funciona igual en ambas arquitecturas
-    [self.centralManager scanForPeripherals...];
+@objc(NativeScanner)
+class NativeScanner: RCTEventEmitter, CBCentralManagerDelegate {
+    // Swift uses @objc decorators to export methods
+    @objc(startScan:resolve:reject:)
+    func startScan(durationSeconds: Double,
+                   resolve: @escaping RCTPromiseResolveBlock,
+                   reject: @escaping RCTPromiseRejectBlock) {
+        // Swift code with CoreBluetooth
+        centralManager.scanForPeripherals(withServices: nil, options: options)
+    }
 }
+```
 
-// Este código SOLO se compila en New Architecture
-#ifdef RCT_NEW_ARCH_ENABLED
-- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:... {
-    return std::make_shared<facebook::react::NativeScannerSpecJSI>(params);
-}
-#endif
+**What does this mean?**
+
+- If `RCT_NEW_ARCH_ENABLED` is active → Uses Turbo Module
+- If NOT active → Uses traditional Bridge
+- **Same code works for both** (Swift or Objective-C)
+- Swift uses `@objc` decorators; Objective-C uses `#ifdef` preprocessor
+
+### Swift vs Objective-C Compatibility
+
+Both languages work with both architectures:
+
+```
+┌─────────────────────────────────────┐
+│  React Native Architecture          │
+├─────────────────────────────────────┤
+│  New Arch ✅    │    Old Arch ✅    │
+├─────────────────┼───────────────────┤
+│  Swift ✅       │    Swift ✅       │
+│  Objective-C ✅ │    Objective-C ✅ │
+└─────────────────────────────────────┘
 ```
 
 ---
 
-## ¿Cómo se activa una u otra?
+## How is one or the other activated?
 
-### Current State: New Architecture ACTIVADA ✅
+### Current State: New Architecture ENABLED ✅
 
-**Archivo**: `android/gradle.properties`
+**File**: `android/gradle.properties`
 ```properties
 newArchEnabled=true
 ```
 
-**Archivo**: `ios/NokeApp/Info.plist`
+**File**: `ios/NokeApp/Info.plist`
 ```xml
 <key>RCTNewArchEnabled</key>
 <true/>
 ```
 
-### Para cambiar a Old Architecture
+### To Change to Old Architecture
 
-**Android** - Edita `android/gradle.properties`:
+**Android** - Edit `android/gradle.properties`:
 ```properties
-newArchEnabled=false  # Cambiar a false
+newArchEnabled=false  # Change to false
 ```
 
-**iOS** - Edita `ios/NokeApp/Info.plist`:
+**iOS** - Edit `ios/NokeApp/Info.plist`:
 ```xml
 <key>RCTNewArchEnabled</key>
-<false/>  <!-- Cambiar a false -->
+<false/>  <!-- Change to false -->
 ```
 
-**Luego**:
+**Then**:
 ```bash
 # Android
 cd android && ./gradlew clean && cd ..
@@ -142,115 +157,115 @@ cd android && ./gradlew clean && cd ..
 cd ios && rm -rf build Pods Podfile.lock && pod install && cd ..
 
 # Rebuild
-npm run ios   # o npm run android
+npm run ios   # or npm run android
 ```
 
 ---
 
-## ¿Qué usa nuestra app AHORA?
+## What is our app using NOW?
 
-### Estado Actual: New Architecture (Turbo Modules)
+### Current State: New Architecture (Turbo Modules)
 
-**Evidencia**:
+**Evidence**:
 1. `gradle.properties`: `newArchEnabled=true`
-2. Al compilar iOS, dice: `"Configuring the target with the New Architecture"`
-3. Codegen genera archivos JSI (`NativeScannerSpecJSI`)
+2. When compiling iOS, it says: `"Configuring the target with the New Architecture"`
+3. Codegen generates JSI files (`NativeScannerSpecJSI`)
 
-**Qué significa**:
-- ✅ Nuestros módulos usan JSI (llamadas directas)
-- ✅ Mejor performance
-- ✅ Preparados para el futuro de React Native
-- ✅ Pero aún funciona en Old si cambiamos el flag
+**What it means**:
+- ✅ Our modules use JSI (direct calls)
+- ✅ Better performance
+- ✅ Prepared for the future of React Native
+- ✅ But still works on Old if we change the flag
 
 ---
 
-## JavaScript: ¿Nota la diferencia?
+## JavaScript: Does it notice the difference?
 
-### NO. El código JavaScript es IDÉNTICO
+### NO. JavaScript code is IDENTICAL
 
-**Desde JavaScript**:
+**From JavaScript**:
 ```typescript
 import NativeScanner from './modules/NativeScanner/js';
 
-// Este código funciona IGUAL en ambas arquitecturas
+// This code works THE SAME on both architectures
 await NativeScanner.startScan(10);
 ```
 
-**Lo que cambia internamente**:
-- **New Arch**: Llamada directa via JSI
-- **Old Arch**: Llamada via Bridge
+**What changes internally**:
+- **New Arch**: Direct call via JSI
+- **Old Arch**: Call via Bridge
 
-**Pero tu código JavaScript no cambia**. Transparente.
-
----
-
-## Ventajas de soportar ambas
-
-### ¿Por qué hicimos esto?
-
-1. **Compatibilidad**: Si surge problema con New Arch, cambiamos a Old
-2. **Testing**: Podemos probar en ambas y comparar
-3. **Usuarios**: Algunos dispositivos/versiones prefieren Old Arch
-4. **Migración**: Permite transición gradual
-
-### ¿Cuál deberíamos usar?
-
-**Recomendación**: ✅ **New Architecture (actual)**
-
-**Razones**:
-- Es el futuro de React Native (Old será deprecated)
-- Mejor performance para BLE (callbacks frecuentes)
-- Ya está funcionando en nuestro proyecto
-- React Native 0.76+ recomienda New Arch
-
-**Mantener Old como opción**:
-- Solo si encontramos bugs específicos de New Arch
-- Para testing/comparación
-- No cambiar sin razón
+**But your JavaScript code doesn't change**. Transparent.
 
 ---
 
-## Resumen para Manager
+## Advantages of supporting both
 
-### Pregunta: "¿Funciona en ambas arquitecturas?"
+### Why did we do this?
 
-**Respuesta**: Sí, nuestros módulos nativos funcionan en:
-- ✅ New Architecture (Turbo Modules) - ACTUAL
+1. **Compatibility**: If there's an issue with New Arch, we switch to Old
+2. **Testing**: We can test on both and compare
+3. **Users**: Some devices/versions prefer Old Arch
+4. **Migration**: Allows gradual transition
+
+### Which should we use?
+
+**Recommendation**: ✅ **New Architecture (current)**
+
+**Reasons**:
+- It's the future of React Native (Old will be deprecated)
+- Better performance for BLE (frequent callbacks)
+- Already working in our project
+- React Native 0.76+ recommends New Arch
+
+**Keep Old as an option**:
+- Only if we find specific New Arch bugs
+- For testing/comparison
+- Don't change without reason
+
+---
+
+## Summary for Managers
+
+### Question: "Does it work on both architectures?"
+
+**Answer**: Yes, our native modules work on:
+- ✅ New Architecture (Turbo Modules) - CURRENT
 - ✅ Old Architecture (Bridge) - FALLBACK
 
-**Cómo**: Usamos compilación condicional (`#ifdef`). El mismo código se compila de dos formas diferentes según el flag.
+**How**: We use conditional compilation (`#ifdef`). The same code compiles in two different ways depending on the flag.
 
-### Pregunta: "¿Cuál estamos usando?"
+### Question: "Which are we using?"
 
-**Respuesta**: New Architecture (Turbo Modules)
+**Answer**: New Architecture (Turbo Modules)
 
-**Evidencia**:
-- `gradle.properties` tiene `newArchEnabled=true`
-- Logs de compilación muestran "New Architecture"
-- Mejor performance
+**Evidence**:
+- `gradle.properties` has `newArchEnabled=true`
+- Build logs show "New Architecture"
+- Better performance
 
-### Pregunta: "¿Cómo cambiamos?"
+### Question: "How do we switch?"
 
-**Respuesta**: Cambiar un flag en configuración y recompilar:
+**Answer**: Change a flag in configuration and recompile:
 ```
 Android: gradle.properties → newArchEnabled=false
 iOS: Info.plist → RCTNewArchEnabled=false
 ```
 
-### Pregunta: "¿Deberíamos cambiar?"
+### Question: "Should we switch?"
 
-**Respuesta**: No. New Architecture es:
-- Más rápida (crítico para BLE)
-- El futuro de React Native
-- Ya funcionando en nuestro proyecto
-- Recomendada por React Native para nuevos proyectos
+**Answer**: No. New Architecture is:
+- Faster (critical for BLE)
+- The future of React Native
+- Already working in our project
+- Recommended by React Native for new projects
 
 ---
 
-## Diagrama Visual
+## Visual Diagram
 
 ```
-┌─────────────────────────────────────────────────────┐
+┌─────────────────────────────────────────────────┐
 │           JavaScript Code (React Native)            │
 │                                                     │
 │  await NativeScanner.startScan(10);                 │
@@ -264,74 +279,73 @@ iOS: Info.plist → RCTNewArchEnabled=false
 │ NEW ARCH    │       │ OLD ARCH    │
 │ (JSI/Turbo) │       │ (Bridge)    │
 │             │       │             │
-│ Llamada     │       │ Serializa   │
-│ Directa ⚡  │       │ a JSON      │
-│             │       │ Pasa cola   │
+│ Direct      │       │ Serialize   │
+│ Call ⚡     │       │ to JSON     │
+│             │       │ Pass queue  │
 └──────┬──────┘       └──────┬──────┘
        │                     │
        │                     │
        ▼                     ▼
 ┌─────────────────────────────────────┐
 │    Native iOS Code                  │
-│    (NativeScanner.mm)               │
+│    (NativeScanner.swift)            │
 │                                     │
-│    [centralManager scanFor...]      │
+│    centralManager.scanFor...        │
 └─────────────────────────────────────┘
 
-Flag: newArchEnabled=true  →  Usa NEW ARCH
-Flag: newArchEnabled=false →  Usa OLD ARCH
+Flag: newArchEnabled=true  →  Uses NEW ARCH
+Flag: newArchEnabled=false →  Uses OLD ARCH
 ```
 
 ---
 
-## Para la presentación
+## For Presentations
 
-### Puntos Clave
+### Key Points
 
-1. **Tenemos doble compatibilidad**
-   - Un solo código funciona en ambas arquitecturas
-   - Magia de `#ifdef` en compilación
+1. **We have dual compatibility**
+   - Single code works on both architectures
+   - Magic of `#ifdef` at compile time
 
-2. **Usamos New Architecture actualmente**
-   - Más moderna y rápida
-   - Recomendada por React Native
-   - Mejor para BLE (operaciones frecuentes)
+2. **We currently use New Architecture**
+   - More modern and faster
+   - Recommended by React Native
+   - Better for BLE (frequent operations)
 
-3. **Podemos cambiar fácilmente**
-   - Solo un flag de configuración
-   - Sin cambios de código
-   - Fallback si hay problemas
+3. **We can switch easily**
+   - Just a configuration flag
+   - No code changes
+   - Fallback if there are problems
 
-4. **No hay que decidir ahora**
-   - Ya funciona en New Arch
-   - Old Arch disponible si se necesita
-   - Transparente para el usuario final
+4. **No need to decide now**
+   - Already working on New Arch
+   - Old Arch available if needed
+   - Transparent to end user
 
-### Si preguntan: "¿Cuál es mejor?"
+### If they ask: "Which is better?"
 
-**New Architecture** para:
-- ✅ Mejor performance (BLE con muchos callbacks)
-- ✅ Futuro de React Native
-- ✅ Proyectos nuevos (nuestro caso)
+**New Architecture** for:
+- ✅ Better performance (BLE with many callbacks)
+- ✅ Future of React Native
+- ✅ New projects (our case)
 
-**Old Architecture** solo si:
-- ❌ Hay bugs críticos en New Arch
-- ❌ Necesitas soportar RN muy antiguas
-- ❌ Terceros módulos incompatibles
+**Old Architecture** only if:
+- ❌ Critical bugs in New Arch
+- ❌ Need to support very old RN versions
+- ❌ Incompatible third-party modules
 
-**Nuestra recomendación**: Seguir con New Architecture (actual)
-
----
-
-## Glosario Rápido
-
-- **Bridge**: Sistema antiguo de comunicación JS ↔ Native (serializa todo a JSON)
-- **JSI**: JavaScript Interface - memoria compartida entre JS y Native
-- **Turbo Module**: Módulo nativo que usa JSI (New Architecture)
-- **Codegen**: Genera código C++ automáticamente desde TypeScript
-- **RCT_NEW_ARCH_ENABLED**: Flag de compilación que activa/desactiva New Arch
+**Our recommendation**: Continue with New Architecture (current)
 
 ---
 
-**Conclusión**: Nuestros módulos son "híbridos inteligentes" que se adaptan automáticamente a la arquitectura configurada. Actualmente usan New Architecture (más rápida), pero pueden volver a Old si fuera necesario.
+## Quick Glossary
 
+- **Bridge**: Old communication system JS ↔ Native (serializes everything to JSON)
+- **JSI**: JavaScript Interface - shared memory between JS and Native
+- **Turbo Module**: Native module that uses JSI (New Architecture)
+- **Codegen**: Automatically generates C++ code from TypeScript
+- **RCT_NEW_ARCH_ENABLED**: Compile flag that enables/disables New Arch
+
+---
+
+**Conclusion**: Our modules are "smart hybrids" that automatically adapt to the configured architecture. They currently use New Architecture (faster), but can fall back to Old if necessary.

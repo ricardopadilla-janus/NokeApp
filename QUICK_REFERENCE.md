@@ -63,15 +63,20 @@ src/services/
 modules/
   ├── TestModule/              # Simple native (alerts, vibrate)
   │   ├── js/                  # TypeScript specs
-  │   └── ios/                 # Native iOS code
-  ├── NativeScanner/           # BLE scan native
+  │   └── ios/                 # Native iOS code (Objective-C++)
+  ├── NativeScanner/           # BLE scan native (Swift)
   │   ├── js/
   │   └── ios/
+  │       ├── NativeScanner.swift
+  │       ├── NativeScannerModule.m
+  │       └── NativeScanner-Bridging-Header.h
   └── NokeBleManager/          # Full BLE (disabled)
       ├── js/
-      ├── ios/
+      ├── ios/                 # Objective-C++
       └── package.json.disabled
 ```
+
+**Note**: NativeScanner uses Swift; TestModule and NokeBleManager use Objective-C++.
 
 ### Documentation
 ```

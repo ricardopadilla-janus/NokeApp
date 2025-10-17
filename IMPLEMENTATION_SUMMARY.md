@@ -34,13 +34,15 @@ modules/NokeBleManager/
 - Auto-detects Turbo Module vs Legacy mode
 - TypeScript interfaces for `BlePeripheral` and `BleEventListener`
 
-**iOS Implementation (`modules/NokeBleManager/ios/NokeBleManager.mm`)**
+**iOS Implementation**
+- NativeScanner: Implemented in Swift (`modules/NativeScanner/ios/NativeScanner.swift`)
+- NokeBleManager: Placeholder uses Objective-C++ (`.mm`) pattern
 - Full CoreBluetooth implementation
 - `CBCentralManager` delegate for BLE operations
 - Scanning with service UUIDs, timeout, and duplicates support
 - Connection/disconnection management
 - Event emission for discovered peripherals, connection status changes
-- **Hybrid architecture support**: Works with both New and Old Architecture via `#ifdef RCT_NEW_ARCH_ENABLED`
+- **Hybrid architecture support**: Works with both New and Old Architecture (Swift uses `@objc` bridging; Objective-C uses `#ifdef RCT_NEW_ARCH_ENABLED`)
 
 **BLE Service Facade (`src/services/BleService.ts`)**
 - Unified interface for switching BLE implementations
