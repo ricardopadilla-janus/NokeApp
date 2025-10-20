@@ -84,8 +84,21 @@ centralManager.scanForPeripherals(
 
 ## Technical Details
 
-**iOS Implementation**: Swift (NativeScanner.swift)
-**Android Implementation**: Not yet implemented
+**iOS Implementation**: Swift (NativeScanner.swift) - CoreBluetooth
+**Android Implementation**: Kotlin (NativeScannerModule.kt) - BluetoothLeScanner
 **TypeScript Spec**: Updated with all methods
 **React Native UI**: Full integration with collapsible controls
+
+## Platform Compatibility
+
+✅ **iOS** (API Level 10+)  
+✅ **Android** (API Level 21+, Android 5.0 Lollipop+)
+
+Both platforms support:
+- Service UUID filtering (hardware-level)
+- RSSI threshold filtering
+- Device name filtering
+- Manufacturer data extraction (MAC, version, battery)
+- Connection/disconnection
+- Full event-driven architecture
 

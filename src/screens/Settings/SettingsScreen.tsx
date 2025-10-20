@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SafeAreaView, View, Text, TouchableOpacity, Alert } from 'react-native';
+import { SafeAreaView, View, Text, TouchableOpacity, Alert, Platform } from 'react-native';
 import { styles } from './styles';
 import TestModule from '../../../modules/TestModule/js/index';
 
@@ -19,7 +19,8 @@ export const SettingsScreen: React.FC = () => {
 
   const testNativeAlert = async () => {
     try {
-      await TestModule.showAlert('Native Alert', 'This alert comes from native iOS code! 🎉');
+      const platformName = Platform.OS === 'ios' ? 'iOS' : 'Android';
+      await TestModule.showAlert('Native Alert', `This alert comes from native ${platformName} code! 🎉`);
     } catch (e) {
       Alert.alert('Error', String(e));
     }
