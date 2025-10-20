@@ -15,10 +15,15 @@
     "react": "*",
     "react-native": "*"
   },
-  "codegenConfig": {
-    "name": "TestModuleSpec",
-    "type": "modules",
-    "jsSrcsDir": "js"
+  "react-native": {
+    "android": {
+      "sourceDir": "./android",
+      "packageImportPath": "import com.testmodule.TestModulePackage;",
+      "packageInstance": "new TestModulePackage()"
+    },
+    "ios": {
+      "podspecPath": "./TestModule.podspec"
+    }
   }
 }
 

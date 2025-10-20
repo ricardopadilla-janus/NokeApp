@@ -16,10 +16,15 @@
     "react": "*",
     "react-native": "*"
   },
-  "codegenConfig": {
-    "name": "NativeScannerSpec",
-    "type": "modules",
-    "jsSrcsDir": "js"
+  "react-native": {
+    "android": {
+      "sourceDir": "./android",
+      "packageImportPath": "import com.nativescanner.NativeScannerPackage;",
+      "packageInstance": "new NativeScannerPackage()"
+    },
+    "ios": {
+      "podspecPath": "./NativeScanner.podspec"
+    }
   }
 }
 

@@ -3,4 +3,8 @@ plugins { id("com.facebook.react.settings") }
 extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
 rootProject.name = 'NokeApp'
 include ':app'
+include ':native-scanner'
+project(':native-scanner').projectDir = new File(rootProject.projectDir, '../modules/NativeScanner/android')
+include ':test-module'
+project(':test-module').projectDir = new File(rootProject.projectDir, '../modules/TestModule/android')
 includeBuild('../node_modules/@react-native/gradle-plugin')
