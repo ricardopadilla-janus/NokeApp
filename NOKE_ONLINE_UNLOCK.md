@@ -44,8 +44,8 @@ Esta rama implementa el **sistema completo de Unlock Online** para candados Noke
 ### Tecnologías
 
 - **React Native** 0.76.6
-- **Swift** (módulos nativos iOS)
-- **CoreBluetooth** (BLE en iOS)
+- **iOS:** Swift + CoreBluetooth
+- **Android:** Kotlin + Android Bluetooth API + Coroutines
 - **Noke API REST** (https://router.smartentry.noke.dev)
 
 ---
@@ -413,10 +413,19 @@ Las credenciales se obtienen del **Portal Web de Noke** (https://manage.noke.com
 
 ### Pre-requisitos
 
+**Para iOS:**
 - **Xcode** 15+ instalado
 - **CocoaPods** instalado (`sudo gem install cocoapods`)
-- **Node.js** 18+ y npm
 - **Dispositivo iOS físico** (BLE no funciona bien en simulador)
+
+**Para Android:**
+- **Android Studio** instalado
+- **Android SDK** (API 21+)
+- **Dispositivo Android físico** o emulador con BLE
+- **Java JDK** 17+
+
+**Común:**
+- **Node.js** 18+ y npm
 
 ### Instalación de Dependencias
 
@@ -426,11 +435,13 @@ cd /Users/ricardo.padilla/Documents/Noke/NokeApp
 # Instalar dependencias de Node
 npm install
 
-# Instalar pods de iOS
+# iOS: Instalar pods
 cd ios && pod install && cd ..
 ```
 
-### Build y Deploy en iPhone
+### Build y Deploy
+
+#### iOS (iPhone)
 
 ```bash
 # Opción 1: Desde terminal
@@ -441,13 +452,25 @@ cd ios
 xcodebuild -workspace NokeApp.xcworkspace \
   -scheme NokeApp \
   -configuration Debug \
-  -destination "id=00008130-00023D5C2643001C" \
+  -destination "id=YOUR_DEVICE_ID" \
   build install
+```
+
+#### Android
+
+```bash
+# Opción 1: Desde terminal
+npm run android
+
+# Opción 2: Desde Android Studio
+# 1. Abrir carpeta /android en Android Studio
+# 2. Conectar dispositivo Android o iniciar emulador
+# 3. Run → Run 'app'
 ```
 
 ### Troubleshooting de Build
 
-#### Error: "Unable to attach DB: database is locked"
+#### iOS: "Unable to attach DB: database is locked"
 
 ```bash
 # Limpiar build cache
@@ -458,7 +481,7 @@ rm -rf ~/Library/Developer/Xcode/DerivedData/NokeApp-*
 npm run ios
 ```
 
-#### Error: "CocoaPods encoding"
+#### iOS: "CocoaPods encoding"
 
 ```bash
 # Agregar en ~/.zshrc o ~/.bash_profile
@@ -470,6 +493,28 @@ source ~/.zshrc
 # Reinstalar pods
 cd ios && pod install && cd ..
 ```
+
+#### Android: Build fails
+
+```bash
+# Limpiar build cache
+cd android
+./gradlew clean
+
+# Rebuild
+cd ..
+npm run android
+```
+
+#### Android: Permisos de Bluetooth
+
+Los permisos ya están configurados en `AndroidManifest.xml`:
+- `BLUETOOTH_SCAN` (Android 12+)
+- `BLUETOOTH_CONNECT` (Android 12+)
+- `ACCESS_FINE_LOCATION` (Android <= 11)
+- `ACCESS_COARSE_LOCATION` (Android <= 11)
+
+**Importante:** En runtime, la app debe solicitar permisos dinámicamente para Android 6+.
 
 ---
 
@@ -833,21 +878,55 @@ El candado Noke **se cierra automáticamente** después del unlock usando un tem
 
 ---
 
+## 🧪 Testing
+
+### Hardware Probado
+
+**iOS:**
+- **Dispositivo:** iPhone (iOS 18+)
+- **Locks:** Noke Lock modelos 1A y 3E
+- **Resultado:** ✅ Todas las funciones operativas en ambos modelos
+
+**Android:**
+- **Dispositivo:** Samsung SM-A146U (Android 14)
+- **Locks:** Noke Lock modelos 1A y 3E
+- **Resultado:** ✅ Todas las funciones operativas en ambos modelos
+
+### Casos de Prueba
+
+- ✅ Escaneo y descubrimiento de dispositivos
+- ✅ Conexión BLE y lectura de session
+- ✅ Login inicial con credenciales
+- ✅ Restauración de sesión desde cache
+- ✅ Unlock online con comando del servidor
+- ✅ Auto re-login cuando token expira
+- ✅ Manejo de errores de red
+- ✅ Desconexión y reconexión
+- ✅ Múltiples ciclos de unlock
+
+### Performance
+
+- **Tiempo de unlock:** 1-2 segundos (ambas plataformas)
+- **Tiempo de conexión:** 500ms-1s (ambas plataformas)
+- **Escaneo:** 10 segundos (configurable)
+
+---
+
 ## 📝 Notas Finales
 
 ### Estado del Proyecto
 
 ✅ **Completado:**
-- Escaneo BLE con filtros
-- Conexión y lectura de session
-- Login y autenticación
-- Auto re-login cuando token expira
-- Unlock online
-- UI con feedback visual
-- Extracción de MAC en iOS
-- Logging completo con cURL commands
-- Auto-reset de botones
-- Manejo robusto de errores
+- Escaneo BLE con filtros (iOS + Android)
+- Conexión y lectura de session (iOS + Android)
+- Login y autenticación (iOS + Android)
+- Auto re-login cuando token expira (iOS + Android)
+- Unlock online (iOS + Android)
+- UI con feedback visual (ambas plataformas)
+- Extracción de MAC (iOS: desde nombre, Android: desde advertising)
+- Logging completo con cURL commands (iOS + Android)
+- Auto-reset de botones (ambas plataformas)
+- Manejo robusto de errores (iOS + Android)
 
 ⏳ **Pendiente (futuras ramas):**
 - Offline unlock

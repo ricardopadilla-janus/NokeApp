@@ -13,6 +13,13 @@ Módulo nativo de React Native para escaneo BLE y comunicación con candados Nok
 
 ```
 modules/NativeScanner/
+├── android/
+│   ├── src/main/java/com/nativescanner/
+│   │   ├── NativeScannerModule.kt      # Módulo BLE (Android Bluetooth)
+│   │   ├── NativeScannerPackage.kt     # Package registration
+│   │   ├── NokeAPIClient.kt            # Cliente HTTP Noke API
+│   │   └── NokeAPIClientPackage.kt     # Package registration
+│   └── build.gradle                     # Configuración Gradle
 ├── ios/
 │   ├── NativeScanner.swift          # Módulo BLE (CoreBluetooth)
 │   ├── NativeScannerModule.m        # Bridge Objective-C
@@ -266,17 +273,48 @@ curl -X POST 'https://router.smartentry.noke.dev/lock/unlock/' \
 
 ## ⚠️ Notas Importantes
 
-1. **Solo funciona en dispositivo físico iOS** - El simulador no soporta BLE adecuadamente
+1. **Dispositivo físico recomendado** - BLE funciona mejor en dispositivos reales
 
-2. **Permisos requeridos** (ya configurados en `Info.plist`):
+2. **Permisos iOS** (ya configurados en `Info.plist`):
    - `NSBluetoothAlwaysUsageDescription`
    - `NSBluetoothPeripheralUsageDescription`
 
-3. **Session debe ser fresca**: Si el candado se reinicia, la session cambia. Reconectar para obtener nueva session.
+3. **Permisos Android** (ya configurados en `AndroidManifest.xml`):
+   - `BLUETOOTH_SCAN` y `BLUETOOTH_CONNECT` (Android 12+)
+   - `ACCESS_FINE_LOCATION` (Android <= 11)
 
-4. **Internet requerido**: Para unlock online se necesita conexión a internet.
+4. **Session debe ser fresca**: Si el candado se reinicia, la session cambia. Reconectar para obtener nueva session.
 
-5. **Auto-cierre**: El candado se cierra automáticamente después del unlock (temporizador del firmware).
+5. **Internet requerido**: Para unlock online se necesita conexión a internet.
+
+6. **Auto-cierre**: El candado se cierra automáticamente después del unlock (temporizador del firmware).
+
+## 🤖 Diferencias iOS vs Android
+
+| Aspecto | iOS | Android |
+|---------|-----|---------|
+| **Lenguaje** | Swift | Kotlin |
+| **API BLE** | CoreBluetooth | Android Bluetooth API |
+| **MAC Address** | Extraída del nombre | Disponible en advertising |
+| **Permisos** | Solo Bluetooth | Bluetooth + Location (API ≤ 31) |
+| **Threading** | Dispatch Queues | Callbacks en GATT thread |
+| **Operation Queue** | Automático | Manual (callbacks estrictos) |
+| **Write Characteristic** | RX (`1bc50002`) | RX (`1bc50002`) ✅ |
+| **Read Characteristic** | TX (`1bc50003`) | TX (`1bc50003`) ✅ |
+| **Sequencing** | Flexible | Estricto (read → notify → write) |
+| **Estado** | ✅ Completo | ✅ Completo |
+
+### ⚠️ Aprendizaje Crítico: RX vs TX
+
+**Convención de Noke** (perspectiva del candado):
+- **RX** (`1bc50002`) = Donde el lock **RECIBE** → Nosotros **ESCRIBIMOS** comandos
+- **TX** (`1bc50003`) = Donde el lock **TRANSMITE** → Nosotros **LEEMOS** respuestas
+
+**Propiedades:**
+- RX: `WRITE` + `WRITE_NO_RESPONSE` (permite escritura)
+- TX: `NOTIFY` + `READ` (solo lectura/notificaciones)
+
+Ver [`IOS_VS_ANDROID_BLE.md`](../../IOS_VS_ANDROID_BLE.md) y [`ANDROID_BLE_SOLUTION.md`](../../ANDROID_BLE_SOLUTION.md) para detalles técnicos completos.
 
 ## 📚 Documentación Completa
 
