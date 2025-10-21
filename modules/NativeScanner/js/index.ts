@@ -131,6 +131,25 @@ class NativeScanner {
   }
 
   /**
+   * Send commands to a connected device
+   * @param commandString - Hex command string (multiple commands separated by '+')
+   * @param deviceId - The device ID to send commands to
+   */
+  async sendCommands(commandString: string, deviceId: string): Promise<void> {
+    return NativeScannerModule.sendCommands(commandString, deviceId);
+  }
+
+  /**
+   * Perform offline unlock on a connected device
+   * @param offlineKey - 64 hex characters (32 bytes)
+   * @param unlockCommand - 80 hex characters (40 bytes)
+   * @param deviceId - The device ID to unlock
+   */
+  async offlineUnlock(offlineKey: string, unlockCommand: string, deviceId: string): Promise<void> {
+    return NativeScannerModule.offlineUnlock(offlineKey, unlockCommand, deviceId);
+  }
+
+  /**
    * Event: Device discovered
    */
   onDeviceDiscovered(callback: (device: BleDevice) => void): BleEventListener {
@@ -171,6 +190,48 @@ class NativeScanner {
    */
   onBluetoothStateChanged(callback: (state: { state: string }) => void): BleEventListener {
     return eventEmitter.addListener('BluetoothStateChanged', callback);
+  }
+
+  /**
+   * Event: Services discovered after connection
+   */
+  onServicesDiscovered(callback: (event: { id: string; servicesCount: number }) => void): BleEventListener {
+    return eventEmitter.addListener('ServicesDiscovered', callback);
+  }
+
+  /**
+   * Event: Characteristics ready - Can now send commands
+   */
+  onCharacteristicsReady(callback: (event: { id: string }) => void): BleEventListener {
+    return eventEmitter.addListener('CharacteristicsReady', callback);
+  }
+
+  /**
+   * Event: Session ready - Session data available for online unlock
+   */
+  onSessionReady(callback: (event: { id: string; session: string }) => void): BleEventListener {
+    return eventEmitter.addListener('SessionReady', callback);
+  }
+
+  /**
+   * Event: Raw command response from device
+   */
+  onCommandResponse(callback: (event: { response: string; responseType: string }) => void): BleEventListener {
+    return eventEmitter.addListener('CommandResponse', callback);
+  }
+
+  /**
+   * Event: Unlock successful
+   */
+  onUnlockSuccess(callback: (event: { response: string; type: string }) => void): BleEventListener {
+    return eventEmitter.addListener('UnlockSuccess', callback);
+  }
+
+  /**
+   * Event: Unlock failed
+   */
+  onUnlockFailed(callback: (event: { error: string; response: string }) => void): BleEventListener {
+    return eventEmitter.addListener('UnlockFailed', callback);
   }
 }
 

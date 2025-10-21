@@ -1,5 +1,6 @@
 import Foundation
 import CoreBluetooth
+import CommonCrypto
 // import NokeMobileLibrary  // TODO: Add to Podfile when ready - not needed for current functionality
 
 @objc(NativeScanner)
@@ -10,6 +11,14 @@ class NativeScanner: RCTEventEmitter, CBCentralManagerDelegate, CBPeripheralDele
     private var connectedPeripheral: CBPeripheral?
     private var isCurrentlyScanning = false
     private var scanTimer: Timer?
+    
+    // MARK: - Noke Device Characteristics
+    private var nokeService: CBService?
+    private var txCharacteristic: CBCharacteristic?  // Write
+    private var rxCharacteristic: CBCharacteristic?  // Read (notifications)
+    private var sessionCharacteristic: CBCharacteristic?  // Session for encryption
+    private var sessionData: Data?
+    private var commandQueue: [Data] = []
     
     // MARK: - Filter Configuration
     
@@ -36,6 +45,17 @@ class NativeScanner: RCTEventEmitter, CBCentralManagerDelegate, CBPeripheralDele
     /// Firmware update mode UUID (for Noke 2i and 4i devices)
     private static let nokeFirmwareUUID = CBUUID(string: "0000fe59-0000-1000-8000-00805f9b34fb")
     
+    // MARK: - Noke Characteristic UUIDs
+    
+    /// TX Characteristic (Write) - for sending commands to lock
+    private static let txCharacteristicUUID = CBUUID(string: "1bc50002-0200-d29e-e511-446c609db825")
+    
+    /// RX Characteristic (Read/Notify) - for receiving responses from lock
+    private static let rxCharacteristicUUID = CBUUID(string: "1bc50003-0200-d29e-e511-446c609db825")
+    
+    /// Session Characteristic - provides session data for encryption
+    private static let sessionCharacteristicUUID = CBUUID(string: "1bc50004-0200-d29e-e511-446c609db825")
+    
     override init() {
         super.init()
         let queue = DispatchQueue(label: "com.noke.scanner", qos: .userInitiated)
@@ -53,7 +73,13 @@ class NativeScanner: RCTEventEmitter, CBCentralManagerDelegate, CBPeripheralDele
             "BluetoothStateChanged",
             "DeviceConnected",
             "DeviceDisconnected",
-            "DeviceConnectionError"
+            "DeviceConnectionError",
+            "ServicesDiscovered",
+            "CharacteristicsReady",
+            "SessionReady",
+            "CommandResponse",
+            "UnlockSuccess",
+            "UnlockFailed"
         ]
     }
     
@@ -481,6 +507,217 @@ class NativeScanner: RCTEventEmitter, CBCentralManagerDelegate, CBPeripheralDele
         resolve(state)
     }
     
+    // MARK: - Command Methods
+    
+    @objc(sendCommands:deviceId:resolve:reject:)
+    func sendCommands(_ commandString: String,
+                     deviceId: String,
+                     resolve: @escaping RCTPromiseResolveBlock,
+                     reject: @escaping RCTPromiseRejectBlock) {
+        
+        NSLog("[NativeScanner] sendCommands called: %@", commandString)
+        
+        guard let peripheral = discoveredPeripherals[deviceId], 
+              peripheral.state == .connected else {
+            reject("NOT_CONNECTED", "Device is not connected", nil)
+            return
+        }
+        
+        guard txCharacteristic != nil else {
+            reject("NOT_READY", "Characteristics not discovered yet", nil)
+            return
+        }
+        
+        // Split commands by '+'
+        let commands = commandString.components(separatedBy: "+")
+        commandQueue.removeAll()
+        
+        for command in commands {
+            guard let commandData = hexStringToData(command) else {
+                reject("INVALID_COMMAND", "Invalid hex string: \(command)", nil)
+                return
+            }
+            commandQueue.append(commandData)
+        }
+        
+        // Start sending commands
+        if let firstCommand = commandQueue.first {
+            writeCommand(firstCommand)
+            resolve(true)
+        } else {
+            reject("EMPTY_COMMANDS", "No commands to send", nil)
+        }
+    }
+    
+    @objc(offlineUnlock:command:deviceId:resolve:reject:)
+    func offlineUnlock(_ key: String,
+                      command: String,
+                      deviceId: String,
+                      resolve: @escaping RCTPromiseResolveBlock,
+                      reject: @escaping RCTPromiseRejectBlock) {
+        
+        NSLog("[NativeScanner] offlineUnlock called")
+        NSLog("[NativeScanner] Key length: %d, Command length: %d", key.count, command.count)
+        
+        guard let peripheral = discoveredPeripherals[deviceId], 
+              peripheral.state == .connected else {
+            reject("NOT_CONNECTED", "Device is not connected", nil)
+            return
+        }
+        
+        guard txCharacteristic != nil else {
+            reject("NOT_READY", "Characteristics not discovered yet", nil)
+            return
+        }
+        
+        guard let session = sessionData, session.count >= 16 else {
+            reject("NO_SESSION", "Session data not available", nil)
+            return
+        }
+        
+        // Validate key and command lengths (64 hex chars = 32 bytes, 80 hex chars = 40 bytes)
+        guard key.count == 64 else {
+            reject("INVALID_KEY", "Key must be 64 hex characters (32 bytes)", nil)
+            return
+        }
+        
+        guard command.count == 80 else {
+            reject("INVALID_COMMAND", "Command must be 80 hex characters (40 bytes)", nil)
+            return
+        }
+        
+        // Convert key and command to Data
+        guard let keyData = hexStringToData(key) else {
+            reject("INVALID_KEY", "Invalid key hex string", nil)
+            return
+        }
+        
+        guard let commandData = hexStringToData(command) else {
+            reject("INVALID_COMMAND", "Invalid command hex string", nil)
+            return
+        }
+        
+        NSLog("[NativeScanner] Encrypting unlock command...")
+        
+        // Encrypt command using AES-256
+        guard let encryptedCommand = encryptCommand(commandData: commandData, 
+                                                    keyData: keyData, 
+                                                    sessionData: session) else {
+            reject("ENCRYPTION_FAILED", "Failed to encrypt command", nil)
+            return
+        }
+        
+        NSLog("[NativeScanner] Sending encrypted unlock command...")
+        
+        // Clear queue and add encrypted command
+        commandQueue.removeAll()
+        
+        // Split encrypted command into 20-byte packets
+        let packets = splitIntoPackets(data: encryptedCommand)
+        commandQueue = packets
+        
+        // Start sending
+        if let firstPacket = commandQueue.first {
+            writeCommand(firstPacket)
+            resolve(true)
+        } else {
+            reject("EMPTY_COMMAND", "No command packets to send", nil)
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func writeCommand(_ commandData: Data) {
+        guard let peripheral = connectedPeripheral,
+              let tx = txCharacteristic else {
+            NSLog("[NativeScanner] ❌ Cannot write command: peripheral or characteristic not available")
+            return
+        }
+        
+        let hexString = commandData.map { String(format: "%02X", $0) }.joined()
+        NSLog("[NativeScanner] 📤 Writing command: %@", hexString)
+        
+        peripheral.writeValue(commandData, for: tx, type: .withoutResponse)
+    }
+    
+    private func hexStringToData(_ hexString: String) -> Data? {
+        var data = Data()
+        var hex = hexString
+        
+        // Remove spaces and make sure it's even length
+        hex = hex.replacingOccurrences(of: " ", with: "")
+        guard hex.count % 2 == 0 else { return nil }
+        
+        var index = hex.startIndex
+        while index < hex.endIndex {
+            let nextIndex = hex.index(index, offsetBy: 2)
+            let byteString = String(hex[index..<nextIndex])
+            guard let byte = UInt8(byteString, radix: 16) else { return nil }
+            data.append(byte)
+            index = nextIndex
+        }
+        
+        return data
+    }
+    
+    private func splitIntoPackets(data: Data) -> [Data] {
+        var packets: [Data] = []
+        let packetSize = 20
+        var offset = 0
+        
+        while offset < data.count {
+            let length = min(packetSize, data.count - offset)
+            let packet = data.subdata(in: offset..<offset+length)
+            packets.append(packet)
+            offset += length
+        }
+        
+        return packets
+    }
+    
+    private func encryptCommand(commandData: Data, keyData: Data, sessionData: Data) -> Data? {
+        // Use AES-256-ECB encryption
+        // Noke uses session data as part of the encryption process
+        
+        var encryptedData = Data(count: commandData.count + kCCBlockSizeAES128)
+        var numBytesEncrypted: size_t = 0
+        
+        // Copy to local variable to avoid overlapping access
+        let encryptedDataCount = encryptedData.count
+        
+        let cryptStatus = keyData.withUnsafeBytes { keyBytes in
+            commandData.withUnsafeBytes { dataBytes in
+                encryptedData.withUnsafeMutableBytes { encryptedBytes in
+                    CCCrypt(
+                        CCOperation(kCCEncrypt),
+                        CCAlgorithm(kCCAlgorithmAES),
+                        CCOptions(kCCOptionECBMode),
+                        keyBytes.baseAddress,
+                        keyData.count,
+                        nil, // IV not used for ECB
+                        dataBytes.baseAddress,
+                        commandData.count,
+                        encryptedBytes.baseAddress,
+                        encryptedDataCount,
+                        &numBytesEncrypted
+                    )
+                }
+            }
+        }
+        
+        guard cryptStatus == kCCSuccess else {
+            NSLog("[NativeScanner] ❌ Encryption failed with status: %d", cryptStatus)
+            return nil
+        }
+        
+        encryptedData.count = numBytesEncrypted
+        
+        NSLog("[NativeScanner] ✓ Command encrypted (%d bytes -> %d bytes)", 
+              commandData.count, encryptedData.count)
+        
+        return encryptedData
+    }
+    
     // MARK: - CBCentralManager Connection Delegate
     
     func centralManager(_ central: CBCentralManager, 
@@ -495,6 +732,10 @@ class NativeScanner: RCTEventEmitter, CBCentralManagerDelegate, CBPeripheralDele
         ]
         
         sendEvent(withName: "DeviceConnected", body: deviceInfo)
+        
+        // Automatically discover services after connection
+        NSLog("[NativeScanner] Discovering services...")
+        peripheral.discoverServices([NativeScanner.nokeServiceUUID])
     }
     
     func centralManager(_ central: CBCentralManager, 
@@ -539,6 +780,191 @@ class NativeScanner: RCTEventEmitter, CBCentralManagerDelegate, CBPeripheralDele
         ]
         
         sendEvent(withName: "DeviceConnectionError", body: deviceInfo)
+    }
+    
+    // MARK: - CBPeripheral Delegate (Services & Characteristics)
+    
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+        guard error == nil else {
+            NSLog("[NativeScanner] ❌ Error discovering services: %@", error!.localizedDescription)
+            return
+        }
+        
+        NSLog("[NativeScanner] Services discovered")
+        
+        guard let services = peripheral.services else { return }
+        
+        for service in services {
+            if service.uuid == NativeScanner.nokeServiceUUID {
+                NSLog("[NativeScanner] Found Noke service, discovering characteristics...")
+                nokeService = service
+                peripheral.discoverCharacteristics([
+                    NativeScanner.txCharacteristicUUID,
+                    NativeScanner.rxCharacteristicUUID,
+                    NativeScanner.sessionCharacteristicUUID
+                ], for: service)
+            }
+        }
+        
+        sendEvent(withName: "ServicesDiscovered", body: [
+            "id": peripheral.identifier.uuidString,
+            "servicesCount": services.count
+        ])
+    }
+    
+    func peripheral(_ peripheral: CBPeripheral, 
+                   didDiscoverCharacteristicsFor service: CBService, 
+                   error: Error?) {
+        guard error == nil else {
+            NSLog("[NativeScanner] ❌ Error discovering characteristics: %@", error!.localizedDescription)
+            return
+        }
+        
+        guard let characteristics = service.characteristics else { return }
+        
+        NSLog("[NativeScanner] Discovered %d characteristics", characteristics.count)
+        
+        for characteristic in characteristics {
+            switch characteristic.uuid {
+            case NativeScanner.txCharacteristicUUID:
+                txCharacteristic = characteristic
+                NSLog("[NativeScanner] ✓ TX Characteristic found (Write)")
+                
+            case NativeScanner.rxCharacteristicUUID:
+                rxCharacteristic = characteristic
+                peripheral.setNotifyValue(true, for: characteristic)
+                NSLog("[NativeScanner] ✓ RX Characteristic found (Read/Notify)")
+                
+            case NativeScanner.sessionCharacteristicUUID:
+                sessionCharacteristic = characteristic
+                peripheral.readValue(for: characteristic)
+                NSLog("[NativeScanner] ✓ Session Characteristic found, reading value...")
+                
+            default:
+                break
+            }
+        }
+        
+        // Check if all required characteristics are found
+        if txCharacteristic != nil && rxCharacteristic != nil && sessionCharacteristic != nil {
+            NSLog("[NativeScanner] ✅ All characteristics ready")
+            sendEvent(withName: "CharacteristicsReady", body: [
+                "id": peripheral.identifier.uuidString
+            ])
+        }
+    }
+    
+    func peripheral(_ peripheral: CBPeripheral, 
+                   didUpdateValueFor characteristic: CBCharacteristic, 
+                   error: Error?) {
+        guard error == nil else {
+            NSLog("[NativeScanner] ❌ Error reading characteristic: %@", error!.localizedDescription)
+            return
+        }
+        
+        // Session characteristic - store for encryption
+        if characteristic.uuid == NativeScanner.sessionCharacteristicUUID {
+            sessionData = characteristic.value
+            NSLog("[NativeScanner] Session data received (%d bytes)", sessionData?.count ?? 0)
+            if let data = sessionData {
+                let hexString = data.map { String(format: "%02X", $0) }.joined()
+                NSLog("[NativeScanner] Session: %@", hexString)
+                
+                // Emit session ready event with the session data
+                sendEvent(withName: "SessionReady", body: [
+                    "id": peripheral.identifier.uuidString,
+                    "session": hexString
+                ])
+            }
+        }
+        
+        // RX characteristic - responses from lock
+        if characteristic.uuid == NativeScanner.rxCharacteristicUUID {
+            guard let data = characteristic.value else { return }
+            let hexString = data.map { String(format: "%02X", $0) }.joined()
+            NSLog("[NativeScanner] 📨 Response from lock: %@", hexString)
+            
+            // Parse response
+            parseCommandResponse(data: data)
+        }
+    }
+    
+    func peripheral(_ peripheral: CBPeripheral, 
+                   didWriteValueFor characteristic: CBCharacteristic, 
+                   error: Error?) {
+        if let error = error {
+            NSLog("[NativeScanner] ❌ Error writing to characteristic: %@", error.localizedDescription)
+            return
+        }
+        
+        NSLog("[NativeScanner] ✓ Command written successfully")
+        
+        // Send next command in queue if any
+        if !commandQueue.isEmpty {
+            commandQueue.removeFirst()
+            if let nextCommand = commandQueue.first {
+                writeCommand(nextCommand)
+            }
+        }
+    }
+    
+    // MARK: - Command Parsing
+    
+    private func parseCommandResponse(data: Data) {
+        let bytes = [UInt8](data)
+        
+        guard bytes.count > 0 else { return }
+        
+        let responseType = bytes[0]
+        
+        let hexString = data.map { String(format: "%02X", $0) }.joined(separator: " ")
+        
+        // Common response types (from NokeDefines.swift)
+        switch responseType {
+        case 0x60: // SUCCESS
+            NSLog("[NativeScanner] ✅ SUCCESS response")
+            sendEvent(withName: "UnlockSuccess", body: [
+                "response": hexString,
+                "type": "success"
+            ])
+            
+        case 0x61: // INVALID KEY
+            NSLog("[NativeScanner] ❌ INVALID KEY")
+            sendEvent(withName: "UnlockFailed", body: [
+                "error": "Invalid key",
+                "response": hexString
+            ])
+            
+        case 0x62: // INVALID COMMAND
+            NSLog("[NativeScanner] ❌ INVALID COMMAND")
+            sendEvent(withName: "UnlockFailed", body: [
+                "error": "Invalid command",
+                "response": hexString
+            ])
+            
+        case 0x63: // INVALID PERMISSION
+            NSLog("[NativeScanner] ❌ INVALID PERMISSION")
+            sendEvent(withName: "UnlockFailed", body: [
+                "error": "Invalid permission",
+                "response": hexString
+            ])
+            
+        case 0x69: // FAILED TO UNLOCK
+            NSLog("[NativeScanner] ❌ FAILED TO UNLOCK")
+            sendEvent(withName: "UnlockFailed", body: [
+                "error": "Failed to unlock",
+                "response": hexString
+            ])
+            
+        default:
+            NSLog("[NativeScanner] Response type: 0x%02X", responseType)
+        }
+        
+        // Always send raw response event
+        sendEvent(withName: "CommandResponse", body: [
+            "response": hexString,
+            "responseType": String(format: "0x%02X", responseType)
+        ])
     }
     
     // MARK: - Event Emitter Methods (Required for New Architecture)

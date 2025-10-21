@@ -1,213 +1,295 @@
-# NativeScanner - React Native BLE Module for Noke Devices
+# NativeScanner & NokeAPI - Módulo BLE Nativo
 
-Módulo nativo para escaneo, conexión y control de dispositivos Noke vía Bluetooth Low Energy.
+Módulo nativo de React Native para escaneo BLE y comunicación con candados Noke.
 
----
+**Nota:** Este módulo solo implementa **Unlock Online**. El candado se cierra automáticamente por firmware.
 
-## ✨ Características
+**Features destacados:**
+- ✅ Auto re-login cuando el token expira
+- ✅ Logging completo con cURL commands para debugging
+- ✅ Manejo robusto de errores de red y API
 
-### ✅ Escaneo BLE Optimizado
-- Filtro de Service UUID (elimina 99% de dispositivos no-Noke)
-- Filtro RSSI por distancia
-- Extracción de MAC address
-- Detección automática de dispositivos Noke
+## 📂 Estructura
 
-### ✅ Conexión a Dispositivos
-- Conectar/desconectar devices
-- Tracking de estados de conexión
-- Manejo de errores
+```
+modules/NativeScanner/
+├── ios/
+│   ├── NativeScanner.swift          # Módulo BLE (CoreBluetooth)
+│   ├── NativeScannerModule.m        # Bridge Objective-C
+│   ├── NokeAPIClient.swift          # Cliente HTTP Noke API
+│   ├── NokeAPIClientModule.m        # Bridge Objective-C
+│   └── NokeAPI.js                   # Wrapper JavaScript
+└── js/
+    └── index.ts                     # TypeScript definitions
+```
 
-### 🔜 Próximamente (Paso 2)
-- Unlock offline
-- Unlock online
-- Comandos de lock/unlock
+## 🔧 Componentes
 
----
+### 1. NativeScanner (BLE Module)
 
-## 🎯 Configuración Óptima (Defaults)
+Módulo Swift para comunicación Bluetooth Low Energy.
+
+**Métodos:**
 
 ```typescript
+// Escanear dispositivos BLE
+NativeScanner.startScan(durationSeconds: number): Promise<void>
+
+// Detener escaneo
+NativeScanner.stopScan(): Promise<void>
+
+// Conectar a dispositivo
+NativeScanner.connect(deviceId: string): Promise<void>
+
+// Desconectar
+NativeScanner.disconnect(deviceId: string): Promise<void>
+
+// Enviar comandos al candado
+NativeScanner.sendCommands(commandString: string, deviceId: string): Promise<void>
+```
+
+**Eventos:**
+
+```typescript
+// Dispositivo descubierto
+NativeScanner.addListener('DeviceDiscovered', (event) => {
+  // event.id, event.name, event.rssi, event.advertising
+});
+
+// Dispositivo conectado
+NativeScanner.addListener('DeviceConnected', (event) => {
+  // event.deviceId
+});
+
+// Session data lista (después de conectar)
+NativeScanner.addListener('SessionReady', (event) => {
+  // event.deviceId, event.sessionData (hex string)
+});
+
+// Respuesta de comando
+NativeScanner.addListener('CommandResponse', (event) => {
+  // event.deviceId, event.response (hex string)
+});
+```
+
+### 2. NokeAPIClient (HTTP Client)
+
+Cliente HTTP Swift para Noke REST API.
+
+**Métodos:**
+
+```typescript
+// Login
+NokeAPIClient.login(
+  email: string,
+  password: string,
+  companyUUID: string,
+  siteUUID: string,
+  deviceId: string
+): Promise<LoginResult>
+
+// Get unlock commands
+NokeAPIClient.getUnlockCommands(
+  mac: string,
+  session: string
+): Promise<{ commandString: string, commands: string[] }>
+
+// Get all offline keys
+NokeAPIClient.getAllOfflineKeys(
+  userUUID: string,
+  companyUUID: string,
+  siteUUID: string
+): Promise<OfflineKey[]>
+```
+
+### 3. NokeAPI.js (Wrapper)
+
+Singleton wrapper JavaScript que facilita el uso del cliente HTTP.
+
+**Ejemplo de uso:**
+
+```javascript
+import NokeAPI from '../modules/NativeScanner/ios/NokeAPI';
+
+// Singleton instance
+const api = NokeAPI.getInstance();
+
+// Login
+await api.login(email, password, companyUUID, siteUUID, deviceUUID);
+
+// Auto-restore session
+await api.restoreSession();
+
+// Get unlock commands (online)
+const { commandString } = await api.getUnlockCommands(macAddress, session);
+
+// Send to lock via BLE
+await NativeScanner.sendCommands(commandString, deviceId);
+```
+
+## 🚀 Uso Rápido
+
+### 1. Escanear y Conectar
+
+```typescript
+import NativeScanner from './modules/NativeScanner';
+
+// Escuchar dispositivos
+NativeScanner.addListener('DeviceDiscovered', (device) => {
+  console.log('Found:', device.name, device.id);
+});
+
+// Escuchar session
+NativeScanner.addListener('SessionReady', (event) => {
+  console.log('Session:', event.sessionData);
+  setSession(event.deviceId, event.sessionData);
+});
+
+// Iniciar escaneo
+await NativeScanner.startScan(10); // 10 segundos
+
+// Conectar
+await NativeScanner.connect(deviceId);
+```
+
+### 2. Unlock Online
+
+```typescript
+import NokeAPI from './modules/NativeScanner/ios/NokeAPI';
+
+// Get MAC from device name
+const mac = extractMacFromName(device.name); // "D0:1F:A6:44:B3:6F"
+
+// Get session from BLE
+const session = deviceSessions[deviceId]; // "E7030000FA51E3D5..."
+
+// Get unlock command from server
+const { commandString } = await NokeAPI.getUnlockCommands(mac, session);
+
+// Send to lock
+await NativeScanner.sendCommands(commandString, deviceId);
+
+// The lock will automatically close after a few seconds (firmware timer)
+```
+
+## 📋 Filtros de Escaneo
+
+El módulo incluye filtros configurables:
+
+```typescript
+// Configuración por defecto
 {
-  useServiceUUIDFilter: true,   // ✅ Filtro crítico (nivel iOS)
-  rssiThreshold: -89,            // ✅ Solo devices cercanos
-  filterNokeOnly: false          // ❌ Redundante (desactivado)
+  filterNokeOnly: false,           // Filtrar solo dispositivos Noke
+  useServiceUUIDFilter: true,      // Filtrar por Service UUID (recomendado)
+  rssiThreshold: -89               // RSSI mínimo (-89 dBm)
 }
 ```
 
-**Resultado**: Solo verás **2-5 dispositivos Noke cercanos** (vs 100+ BLE devices)
+**Service UUID de Noke:** `1BC50001-0200-D29E-E511-446C609DB825`
 
----
+## 🔍 MAC Address en iOS
 
-## 🚀 Instalación
-
-```bash
-# 1. Instalar dependencias
-cd ios && pod install
-
-# 2. Rebuild app
-npm run ios
-```
-
-**Dependencia requerida**: NokeMobileLibrary (ya en Podfile)
-
----
-
-## 📱 Uso Rápido
+iOS no permite leer MAC directamente. Solución implementada:
 
 ```typescript
-import NativeScanner from 'native-scanner';
+// Noke incluye MAC en el nombre del dispositivo
+// Formato: NOKE3E_D01FA644B36F
+//                 ^^^^^^^^^ MAC sin dos puntos
 
-// 1. Escanear (10 segundos)
-await NativeScanner.startScan(10);
-
-// 2. Escuchar dispositivos descubiertos
-NativeScanner.onDeviceDiscovered((device) => {
-  console.log('Noke found:', device.name, device.rssi);
-});
-
-// 3. Conectar a un dispositivo
-await NativeScanner.connect(device.id);
-
-// 4. Escuchar conexión exitosa
-NativeScanner.onDeviceConnected((device) => {
-  console.log('Connected to:', device.name);
-});
-
-// 5. Desconectar
-await NativeScanner.disconnect(device.id);
+function extractMac(deviceName: string): string {
+  const match = deviceName.match(/NOKE\w+_([0-9A-F]{12})$/i);
+  if (!match) return null;
+  
+  const mac = match[1];
+  return mac.match(/.{2}/g).join(':').toUpperCase();
+  // Result: "D0:1F:A6:44:B3:6F"
+}
 ```
 
----
+## 📝 TypeScript Definitions
 
-## 📚 Documentación
+Ver `js/index.ts` para definiciones completas:
 
-- **STEP1_CONNECTION_GUIDE.md** - Guía paso a paso con ejemplos completos
-- **USAGE_EXAMPLES.md** - 7 ejemplos de uso
-- **SERVICE_UUID_FILTER.md** - Explicación del filtro crítico
-- **FILTER_OPTIMIZATION.md** - Análisis de optimización
-- **CHANGELOG.md** - Historial de cambios
-
----
-
-## 🎯 Filtros Implementados
-
-### 1️⃣ Service UUID Filter (CRÍTICO)
-```
-UUID: 1bc50001-0200-d29e-e511-446c609db825
-```
-- Filtro a nivel de iOS (Core Bluetooth)
-- Elimina 99% de dispositivos BLE
-- Solo permite devices con Service UUID de Noke
-
-### 2️⃣ RSSI Threshold
-```
-Default: -89 dBm
-```
-- Filtra por distancia/señal
-- Configurable en runtime
-- Elimina locks muy lejanos
-
-### 3️⃣ Noke Name Filter (Opcional)
-```
-Default: Desactivado
-```
-- Redundante con Service UUID
-- Disponible para debug mode
-- Validación por nombre + manufacturer data
-
----
-
-## 🔧 API Reference
-
-### Scanning
 ```typescript
-await NativeScanner.startScan(durationSeconds: number)
-await NativeScanner.stopScan()
-await NativeScanner.isScanning(): Promise<boolean>
+interface BleDevice {
+  id: string;
+  name: string;
+  rssi: number;
+  advertising?: {
+    localName?: string;
+    manufacturerData?: string;
+    serviceUUIDs?: string[];
+  };
+}
+
+interface LoginResult {
+  success: boolean;
+  token: string;
+  userData: {
+    userUUID: string;
+    email: string;
+    companyUUID: string;
+  };
+}
 ```
 
-### Connection
-```typescript
-await NativeScanner.connect(deviceId: string)
-await NativeScanner.disconnect(deviceId: string)
-await NativeScanner.getConnectionState(deviceId: string): Promise<string>
+## 🐛 Debugging
+
+### Habilitar logs detallados
+
+Los logs están habilitados por defecto:
+
+```
+// Swift logs (Xcode Console)
+[NativeScanner] ✅ Connected to: NOKE3E_D01FA644B36F
+[NokeAPIClient] 📥 Response: 200
+[NokeAPIClient] ✅ Unlock commands received: 1 commands
+
+// JavaScript logs (Metro)
+[NokeAPI] Getting unlock commands for D0:1F:A6:44:B3:6F...
+[NokeAPI] ✅ Unlock commands received (1 commands)
 ```
 
-### Filters
-```typescript
-await NativeScanner.setRSSIThreshold(threshold: number)
-await NativeScanner.setServiceUUIDFilter(enabled: boolean)
-await NativeScanner.setFilterNokeOnly(enabled: boolean)
-await NativeScanner.getFilterSettings(): Promise<FilterSettings>
+### Ver cURL commands
+
+El módulo imprime el cURL exacto de cada request:
+
+```
+[NokeAPIClient] 🔧 CURL COMMAND:
+─────────────────────────────────────────────────────────
+curl -X POST 'https://router.smartentry.noke.dev/lock/unlock/' \
+  -H 'Authorization: Bearer eyJ...' \
+  -H 'Content-Type: application/json' \
+  -d '{"session":"E703...","mac":"D0:1F:A6:44:B3:6F"}'
+─────────────────────────────────────────────────────────
 ```
 
-### Events
-```typescript
-NativeScanner.onDeviceDiscovered(callback)
-NativeScanner.onDeviceConnected(callback)
-NativeScanner.onDeviceDisconnected(callback)
-NativeScanner.onDeviceConnectionError(callback)
-NativeScanner.onScanStopped(callback)
-NativeScanner.onBluetoothStateChanged(callback)
-```
+## ⚠️ Notas Importantes
+
+1. **Solo funciona en dispositivo físico iOS** - El simulador no soporta BLE adecuadamente
+
+2. **Permisos requeridos** (ya configurados en `Info.plist`):
+   - `NSBluetoothAlwaysUsageDescription`
+   - `NSBluetoothPeripheralUsageDescription`
+
+3. **Session debe ser fresca**: Si el candado se reinicia, la session cambia. Reconectar para obtener nueva session.
+
+4. **Internet requerido**: Para unlock online se necesita conexión a internet.
+
+5. **Auto-cierre**: El candado se cierra automáticamente después del unlock (temporizador del firmware).
+
+## 📚 Documentación Completa
+
+Ver: [`NOKE_ONLINE_UNLOCK.md`](../../NOKE_ONLINE_UNLOCK.md)
+
+## 🔗 Enlaces
+
+- **Noke API Docs**: https://router.smartentry.noke.dev
+- **Portal Web**: https://manage.noke.com
+- **CoreBluetooth**: https://developer.apple.com/documentation/corebluetooth
 
 ---
 
-## 📊 Performance
-
-| Configuración | Devices/10s | CPU | Batería |
-|---------------|-------------|-----|---------|
-| Sin filtros | 100+ | 🔴 Alto | 🔴 Alto |
-| Solo Service UUID | 50 | 🟡 Medio | 🟡 Medio |
-| **Service UUID + RSSI** ⭐ | **5-10** | **🟢 Bajo** | **🟢 Bajo** |
-
----
-
-## 🐛 Troubleshooting
-
-### No encuentro dispositivos
-```typescript
-// Verificar configuración
-const settings = await NativeScanner.getFilterSettings();
-console.log(settings);
-
-// Si useServiceUUIDFilter = false, tus locks deben anunciar Service UUID
-// Si RSSI muy alto, locks pueden estar muy lejos
-```
-
-### Veo demasiados dispositivos
-```typescript
-// Activar Service UUID filter
-await NativeScanner.setServiceUUIDFilter(true);
-```
-
----
-
-## 📖 Version
-
-**Current**: v1.2.1  
-**Status**: ✅ Production Ready (Paso 1 completo)
-
----
-
-## 🔜 Roadmap
-
-- [x] Escaneo BLE con filtros
-- [x] Conexión/desconexión
-- [ ] Unlock offline (Paso 2)
-- [ ] Unlock online (Paso 3)
-- [ ] Lock device (Paso 4)
-- [ ] Inactivity timer
-- [ ] User locks cache
-
----
-
-## 📄 License
-
-Copyright © 2025 Noke Inc.
-
----
-
-## 👨‍💻 Author
-
-Ricardo Padilla - Storage Smart Entry iOS Team
+**Versión:** 1.0.0  
+**Branch:** feature/lock-unlock  
+**Última actualización:** Octubre 2024

@@ -73,3 +73,5 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+# Noke Credentials (DO NOT COMMIT TO GIT)
+src/config/nokeCredentials.ts

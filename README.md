@@ -2,6 +2,33 @@
 
 Development project for creating a React Native SDK that enables third-party apps to integrate Noke Smart Lock functionality via Bluetooth Low Energy (BLE).
 
+---
+
+## 🔓 **NEW: Online Unlock Implementation**
+
+**Branch:** `feature/lock-unlock`
+
+✅ **Sistema completo de Unlock Online implementado**
+
+Este branch incluye la implementación completa de unlock de candados Noke usando:
+- BLE (Bluetooth Low Energy) para comunicación directa con candados
+- Noke REST API para obtención de comandos encriptados
+- Auto-login al entrar al tab + Auto re-login cuando el token expira
+- Extracción de MAC address desde nombre del dispositivo (iOS)
+- UI completa con feedback visual en tiempo real
+- Auto-cierre del candado (función del firmware)
+- Manejo robusto de errores con recuperación automática
+
+📖 **Ver documentación completa:** [`NOKE_ONLINE_UNLOCK.md`](./NOKE_ONLINE_UNLOCK.md)
+
+**Quick Start:**
+1. Configurar credenciales en `src/config/nokeCredentials.ts`
+2. `npm install && cd ios && pod install && cd ..`
+3. `npm run ios` (requiere dispositivo iOS físico)
+4. Escanear → Conectar → Unlock (el candado se cierra automáticamente)
+
+---
+
 ## 🎯 Project Goals
 
 This project serves as:
