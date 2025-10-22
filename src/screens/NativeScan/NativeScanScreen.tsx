@@ -8,9 +8,12 @@ import {
   ActivityIndicator,
   Switch,
   TextInput,
+  Alert,
 } from 'react-native';
 import { styles, getSignalStrength } from './styles';
 import NativeScanner, { BleDevice, FilterSettings } from '../../../modules/NativeScanner/js/index';
+import NokeAPI from '../../../modules/NativeScanner/ios/NokeAPI';
+import { NOKE_CREDENTIALS } from '../../config/nokeCredentials';
 
 export const NativeScanScreen: React.FC = () => {
   const [isScanning, setIsScanning] = useState(false);
@@ -23,15 +26,53 @@ export const NativeScanScreen: React.FC = () => {
     useServiceUUIDFilter: true,  // Most important filter - eliminates 99% of BLE devices
   });
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  
+  // Unlock state
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const [characteristicsReady, setCharacteristicsReady] = useState<Record<string, boolean>>({});
+  const [unlockStatus, setUnlockStatus] = useState<Record<string, string>>({});
+  const [isUnlocking, setIsUnlocking] = useState<Record<string, boolean>>({});
+  
+  // Noke API state
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [deviceMacAddresses, setDeviceMacAddresses] = useState<Record<string, string>>({});
+  const [deviceSessions, setDeviceSessions] = useState<Record<string, string>>({});
+  
   const listenersRef = useRef<any[]>([]);
+  const sessionInitialized = useRef(false);
 
   useEffect(() => {
+    // Login when entering this tab
+    if (!sessionInitialized.current) {
+      initNokeSession();
+      sessionInitialized.current = true;
+    }
+    
     // Load current filter settings
     loadFilterSettings();
 
     // Setup event listeners
     const deviceListener = NativeScanner.onDeviceDiscovered((device: BleDevice) => {
       console.log('[NativeScan] Device discovered:', device.name, device.id);
+      
+      // Store MAC address if available (from advertising or device name)
+      let macAddress = device.advertising?.macAddress;
+      
+      // If no MAC in advertising (iOS), extract from device name
+      if (!macAddress) {
+        const name = device.name || '';
+        const match = name.match(/([A-F0-9]{12})$/i);
+        if (match) {
+          const macWithoutColons = match[1];
+          macAddress = macWithoutColons.match(/.{1,2}/g)?.join(':').toUpperCase() || undefined;
+        }
+      }
+      
+      if (macAddress) {
+        setDeviceMacAddresses((prev) => ({ ...prev, [device.id]: macAddress! }));
+        console.log(`[NativeScan] MAC stored: ${macAddress} for ${device.id} (${device.name})`);
+      }
+      
       setDevices((prev) => {
         const exists = prev.find((d) => d.id === device.id);
         if (exists) {
@@ -76,19 +117,60 @@ export const NativeScanScreen: React.FC = () => {
       );
     });
 
+    // Unlock event listeners
+    const servicesDiscoveredListener = NativeScanner.onServicesDiscovered((event) => {
+      console.log('[NativeScan] Services discovered:', event.servicesCount);
+      setUnlockStatus((prev) => ({ ...prev, [event.id]: '🔍 Services discovered...' }));
+    });
+
+    const characteristicsReadyListener = NativeScanner.onCharacteristicsReady((event) => {
+      console.log('[NativeScan] ✅ Characteristics ready for device:', event.id);
+      setCharacteristicsReady((prev) => ({ ...prev, [event.id]: true }));
+      setUnlockStatus((prev) => ({ ...prev, [event.id]: '✅ Ready to unlock' }));
+    });
+
+    const sessionReadyListener = NativeScanner.onSessionReady((event) => {
+      console.log('[NativeScan] 🔑 Session ready for device:', event.id);
+      console.log('[NativeScan]    Session:', event.session);
+      setDeviceSessions((prev) => ({ ...prev, [event.id]: event.session }));
+      setUnlockStatus((prev) => ({ ...prev, [event.id]: '🔑 Session ready - Can unlock' }));
+    });
+
+    const commandResponseListener = NativeScanner.onCommandResponse((event) => {
+      console.log('[NativeScan] Command response:', event.response, event.responseType);
+    });
+
+    const unlockSuccessListener = NativeScanner.onUnlockSuccess((event) => {
+      console.log('[NativeScan] 🎉 UNLOCK SUCCESS!', event);
+      setUnlockStatus((prev) => ({ ...prev, [selectedDeviceId || '']: '🎉 Unlock Successful!' }));
+      setIsUnlocking((prev) => ({ ...prev, [selectedDeviceId || '']: false }));
+    });
+
+    const unlockFailedListener = NativeScanner.onUnlockFailed((event) => {
+      console.error('[NativeScan] ❌ UNLOCK FAILED:', event.error);
+      setUnlockStatus((prev) => ({ ...prev, [selectedDeviceId || '']: `❌ Failed: ${event.error}` }));
+      setIsUnlocking((prev) => ({ ...prev, [selectedDeviceId || '']: false }));
+    });
+
     listenersRef.current = [
       deviceListener, 
       stopListener, 
       stateListener,
       connectedListener,
       disconnectedListener,
-      connectionErrorListener
+      connectionErrorListener,
+      servicesDiscoveredListener,
+      characteristicsReadyListener,
+      sessionReadyListener,
+      commandResponseListener,
+      unlockSuccessListener,
+      unlockFailedListener
     ];
 
     return () => {
       listenersRef.current.forEach((listener) => listener.remove());
     };
-  }, []);
+  }, [deviceMacAddresses]);
 
   const loadFilterSettings = async () => {
     try {
@@ -180,8 +262,173 @@ export const NativeScanScreen: React.FC = () => {
     try {
       console.log('[NativeScan] Disconnecting from device:', deviceId);
       await NativeScanner.disconnect(deviceId);
+      // Clear unlock state for this device
+      setCharacteristicsReady((prev) => {
+        const newState = { ...prev };
+        delete newState[deviceId];
+        return newState;
+      });
+      setUnlockStatus((prev) => {
+        const newState = { ...prev };
+        delete newState[deviceId];
+        return newState;
+      });
+      if (selectedDeviceId === deviceId) {
+        setSelectedDeviceId(null);
+      }
     } catch (error) {
       console.error('[NativeScan] Disconnection failed:', error);
+    }
+  };
+
+  const handleUnlock = async (deviceId: string) => {
+    try {
+      console.log('[NativeScan] Starting unlock for device:', deviceId);
+      setIsUnlocking((prev) => ({ ...prev, [deviceId]: true }));
+      setUnlockStatus((prev) => ({ ...prev, [deviceId]: '🔓 Unlocking...' }));
+      
+      // Get device and extract MAC address
+      const device = devices.find(d => d.id === deviceId);
+      if (!device) {
+        throw new Error('Device not found');
+      }
+      
+      const macAddress = getMacAddress(device);
+      console.log(`[NativeScan] Extracted MAC: ${macAddress} from device: ${device.name}`);
+      
+      if (!macAddress) {
+        throw new Error('No MAC address found for device');
+      }
+      
+      // Get session from device
+      const session = deviceSessions[deviceId] || '';
+      
+      if (!session) {
+        throw new Error('No session available. Wait for session to be read from device.');
+      }
+      
+      console.log('[NativeScan] Getting unlock commands for MAC:', macAddress);
+      console.log('[NativeScan] Using session:', session.substring(0, 16) + '...');
+      
+      setUnlockStatus((prev) => ({ ...prev, [deviceId]: '📡 Getting unlock commands...' }));
+      const unlockData = await NokeAPI.getUnlockCommands(macAddress, session);
+      
+      console.log('[NativeScan] Got unlock commands:', unlockData.commands?.length || 0);
+      setUnlockStatus((prev) => ({ ...prev, [deviceId]: '🔐 Sending unlock...' }));
+      
+      // Send commands to device
+      await NativeScanner.sendCommands(unlockData.commandString, deviceId);
+      
+      console.log('[NativeScan] Unlock command sent, waiting for response...');
+      setUnlockStatus((prev) => ({ ...prev, [deviceId]: '⏳ Waiting for response...' }));
+      
+      // Auto-reset after 5 seconds
+      setTimeout(() => {
+        setIsUnlocking((prev) => ({ ...prev, [deviceId]: false }));
+        setUnlockStatus((prev) => ({ 
+          ...prev, 
+          [deviceId]: prev[deviceId]?.includes('Success') || prev[deviceId]?.includes('Failed') 
+            ? prev[deviceId] 
+            : '✅ Unlocked successfully' 
+        }));
+      }, 5000);
+      
+    } catch (error: any) {
+      console.error('[NativeScan] Unlock failed:', error);
+      
+      // If token expired, try to re-login automatically
+      if (error.message?.includes('Session expired')) {
+        console.log('[NativeScan] Token expired, attempting automatic re-login...');
+        setUnlockStatus((prev) => ({ ...prev, [deviceId]: '🔄 Re-logging in...' }));
+        
+        try {
+          // Force a fresh login (not just restore)
+          await initNokeSession(true);
+          setUnlockStatus((prev) => ({ ...prev, [deviceId]: '✅ Re-logged in. Please try unlock again.' }));
+          setIsUnlocking((prev) => ({ ...prev, [deviceId]: false }));
+        } catch (reloginError: any) {
+          setUnlockStatus((prev) => ({ ...prev, [deviceId]: `❌ Re-login failed: ${reloginError.message}` }));
+          setIsUnlocking((prev) => ({ ...prev, [deviceId]: false }));
+        }
+      } else {
+        setUnlockStatus((prev) => ({ ...prev, [deviceId]: `❌ Error: ${error.message}` }));
+        setIsUnlocking((prev) => ({ ...prev, [deviceId]: false }));
+      }
+    }
+  };
+
+  // Helper function to extract MAC address from device name or advertising
+  const getMacAddress = (device: BleDevice): string | null => {
+    // Try to get from advertising first (Android)
+    if (device.advertising?.macAddress) {
+      return device.advertising.macAddress;
+    }
+    
+    // Extract from device name (iOS) - format: NOKE3E_D01FA644B36F -> D0:1F:A6:44:B3:6F
+    const name = device.name || '';
+    const match = name.match(/([A-F0-9]{12})$/i);
+    if (match) {
+      const macWithoutColons = match[1];
+      // Convert D01FA644B36F to D0:1F:A6:44:B3:6F
+      const mac = macWithoutColons.match(/.{1,2}/g)?.join(':').toUpperCase();
+      return mac || null;
+    }
+    
+    return null;
+  };
+
+  const handleSendCommand = async (deviceId: string, command: string) => {
+    try {
+      console.log('[NativeScan] Sending custom command:', command);
+      setUnlockStatus((prev) => ({ ...prev, [deviceId]: '📤 Sending command...' }));
+      
+      await NativeScanner.sendCommands(command, deviceId);
+      console.log('[NativeScan] Command sent');
+      setUnlockStatus((prev) => ({ ...prev, [deviceId]: '✅ Command sent' }));
+    } catch (error: any) {
+      console.error('[NativeScan] Send command failed:', error);
+      setUnlockStatus((prev) => ({ ...prev, [deviceId]: `❌ Error: ${error.message}` }));
+    }
+  };
+
+  // ========== Noke API Functions ==========
+
+  const initNokeSession = async (forceLogin = false) => {
+    try {
+      console.log('[NativeScan] Initializing Noke session...');
+      
+      // If force login, skip restore and do fresh login
+      if (!forceLogin) {
+        // Try to restore existing session
+        const session = await NokeAPI.restoreSession();
+        if (session) {
+          console.log('[NativeScan] ✅ Session restored:', session.email);
+          setIsLoggedIn(true);
+          return;
+        }
+      }
+      
+      // No existing session or forced, perform fresh login
+      console.log('[NativeScan] Performing fresh login...');
+      
+      // Set environment
+      await NokeAPI.setEnvironment(NOKE_CREDENTIALS.environment);
+      
+      // Login
+      const loginResult = await NokeAPI.login({
+        email: NOKE_CREDENTIALS.email,
+        password: NOKE_CREDENTIALS.password,
+        companyUUID: NOKE_CREDENTIALS.companyUUID,
+        siteUUID: NOKE_CREDENTIALS.siteUUID,
+        deviceId: NOKE_CREDENTIALS.deviceId || undefined,
+      });
+      
+      console.log('[NativeScan] ✅ Logged in:', loginResult.userUUID);
+      setIsLoggedIn(true);
+      
+    } catch (error: any) {
+      console.error('[NativeScan] ❌ Failed to initialize session:', error);
+      Alert.alert('Login Failed', `Could not login to Noke API: ${error.message}`);
     }
   };
 
@@ -192,20 +439,27 @@ export const NativeScanScreen: React.FC = () => {
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = devices.filter(d => 
-        d.name.toLowerCase().includes(query) || 
-        d.id.toLowerCase().includes(query) ||
-        d.advertising?.macAddress?.toLowerCase().includes(query)
-      );
+      filtered = devices.filter(d => {
+        const macFromHelper = deviceMacAddresses[d.id]?.toLowerCase() || '';
+        return d.name.toLowerCase().includes(query) || 
+               d.id.toLowerCase().includes(query) ||
+               d.advertising?.macAddress?.toLowerCase().includes(query) ||
+               macFromHelper.includes(query);
+      });
     }
     
     // Sort by best signal (highest RSSI first)
     return [...filtered].sort((a, b) => b.rssi - a.rssi);
-  }, [devices, searchQuery]);
+  }, [devices, searchQuery, deviceMacAddresses]);
 
   const renderDevice = ({ item }: { item: BleDevice }) => {
     const signal = getSignalStrength(item.rssi);
-    const hasManufacturerData = item.advertising?.macAddress !== undefined;
+    const macAddress = deviceMacAddresses[item.id]; // MAC from our helper
+    const sessionData = deviceSessions[item.id]; // Session if connected
+    const hasDetails = macAddress || item.advertising?.version || item.advertising?.battery !== undefined;
+    const isReady = characteristicsReady[item.id];
+    const status = unlockStatus[item.id];
+    const isDeviceUnlocking = isUnlocking[item.id];
     
     return (
       <View style={styles.deviceItem}>
@@ -213,11 +467,14 @@ export const NativeScanScreen: React.FC = () => {
           {/* Device Name */}
           <Text style={styles.deviceName}>{item.name}</Text>
           
-          {/* Manufacturer Data - Only if available */}
-          {hasManufacturerData && (
+          {/* Device Details - Show if we have MAC or other data */}
+          {hasDetails && (
             <View style={styles.compactDataSection}>
-              {item.advertising?.macAddress && (
-                <Text style={styles.compactDataLine}>📍 MAC: {item.advertising.macAddress}</Text>
+              {macAddress && (
+                <Text style={styles.compactDataLine}>📍 MAC: {macAddress}</Text>
+              )}
+              {sessionData && (
+                <Text style={styles.compactDataLine}>🔑 Session: {sessionData.substring(0, 16)}...</Text>
               )}
               {item.advertising?.version && (
                 <Text style={styles.compactDataLine}>🔧 Version: {item.advertising.version}</Text>
@@ -238,6 +495,36 @@ export const NativeScanScreen: React.FC = () => {
               <Text style={styles.signalText}>{signal.text}</Text>
             </View>
           </View>
+
+          {/* Unlock Status */}
+          {item.isConnected && status && (
+            <View style={styles.unlockStatusContainer}>
+              <Text style={[
+                styles.unlockStatusText,
+                status.includes('Success') && styles.unlockSuccess,
+                status.includes('Failed') && styles.unlockFailed,
+              ]}>
+                {status}
+              </Text>
+            </View>
+          )}
+
+          {/* Unlock Control - Show when connected */}
+          {item.isConnected && isReady && (
+            <TouchableOpacity
+              style={[styles.unlockButton, isDeviceUnlocking && styles.unlockingButton]}
+              onPress={() => handleUnlock(item.id)}
+              disabled={isDeviceUnlocking}
+            >
+              {isDeviceUnlocking ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.unlockButtonText}>
+                  🔓 Unlock
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
         
         {/* Connect/Disconnect Button */}
@@ -264,8 +551,6 @@ export const NativeScanScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Native Scanner</Text>
-        <Text style={styles.subtitle}>Pure iOS CoreBluetooth</Text>
         <Text style={styles.stateText}>Bluetooth: {bluetoothState}</Text>
       </View>
 

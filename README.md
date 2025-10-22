@@ -2,6 +2,47 @@
 
 Development project for creating a React Native SDK that enables third-party apps to integrate Noke Smart Lock functionality via Bluetooth Low Energy (BLE).
 
+---
+
+## 🔓 **NEW: Online Unlock Implementation**
+
+**Branch:** `feature/lock-unlock`
+
+✅ **Sistema completo de Unlock Online implementado para iOS y Android**
+
+Este branch incluye la implementación completa de unlock de candados Noke usando:
+- **Plataformas:** iOS (Swift) + Android (Kotlin) - Paridad completa
+- BLE (Bluetooth Low Energy) para comunicación directa con candados
+- Noke REST API para obtención de comandos encriptados
+- Auto-login al entrar al tab + Auto re-login cuando el token expira
+- Extracción de MAC address (desde nombre en iOS, desde advertising en Android)
+- UI completa con feedback visual en tiempo real
+- Auto-cierre del candado (función del firmware)
+- Manejo robusto de errores con recuperación automática
+
+📖 **Ver documentación completa:** [`NOKE_ONLINE_UNLOCK.md`](./NOKE_ONLINE_UNLOCK.md)
+
+**Quick Start:**
+
+iOS:
+1. Configurar credenciales en `src/config/nokeCredentials.ts`
+2. `npm install && cd ios && pod install && cd ..`
+3. `npm run ios` (requiere dispositivo iOS físico)
+
+Android:
+1. Configurar credenciales en `src/config/nokeCredentials.ts`
+2. `npm install`
+3. `npm run android` (dispositivo Android o emulador con BLE)
+
+4. Ir al tab "Native" → Escanear → Conectar → Unlock
+
+📋 **Documentación Técnica:**
+- [`NOKE_ONLINE_UNLOCK.md`](./NOKE_ONLINE_UNLOCK.md) - Guía completa de funcionalidad
+- [`IOS_VS_ANDROID_BLE.md`](./IOS_VS_ANDROID_BLE.md) - Análisis comparativo iOS vs Android
+- [`ANDROID_BLE_SOLUTION.md`](./ANDROID_BLE_SOLUTION.md) - Detalles técnicos de Android
+
+---
+
 ## 🎯 Project Goals
 
 This project serves as:

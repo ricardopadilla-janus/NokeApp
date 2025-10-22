@@ -1,13 +1,9 @@
 #import <Foundation/Foundation.h>
 #import <React/RCTBridgeModule.h>
 
-#ifdef RCT_NEW_ARCH_ENABLED
-#import <TestModuleSpec/TestModuleSpec.h>
-
-@interface TestModule : NSObject <NativeTestModuleSpec>
-#else
+// Note: TestModule is using legacy bridge module for now
+// To enable New Architecture, add codegenConfig to package.json
 @interface TestModule : NSObject <RCTBridgeModule>
-#endif
 
 @end
 

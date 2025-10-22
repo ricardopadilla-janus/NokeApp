@@ -7,25 +7,16 @@ export const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 10,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
+    alignItems: 'center',
   },
   stateText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#007AFF',
-    marginTop: 5,
+    fontWeight: '500',
   },
   filterSection: {
     backgroundColor: '#fff',
@@ -263,6 +254,44 @@ export const styles = StyleSheet.create({
   connectButtonText: {
     color: '#fff',
     fontSize: 12,
+    fontWeight: '600',
+  },
+  // Unlock Controls in Device Item
+  unlockStatusContainer: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 6,
+  },
+  unlockStatusText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  unlockSuccess: {
+    color: '#4CAF50',
+    backgroundColor: '#E8F5E9',
+  },
+  unlockFailed: {
+    color: '#F44336',
+    backgroundColor: '#FFEBEE',
+  },
+  unlockButton: {
+    backgroundColor: '#FF6B00',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unlockingButton: {
+    backgroundColor: '#FF9800',
+    opacity: 0.7,
+  },
+  unlockButtonText: {
+    color: '#fff',
+    fontSize: 13,
     fontWeight: '600',
   },
 });

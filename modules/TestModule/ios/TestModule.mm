@@ -2,10 +2,6 @@
 #import <UIKit/UIKit.h>
 #import <AudioToolbox/AudioToolbox.h>
 
-#ifdef RCT_NEW_ARCH_ENABLED
-#import <React/RCTUtils.h>
-#endif
-
 @implementation TestModule
 
 RCT_EXPORT_MODULE()
@@ -65,13 +61,8 @@ RCT_EXPORT_METHOD(getDeviceInfo:(RCTPromiseResolveBlock)resolve
     resolve(info);
 }
 
-#ifdef RCT_NEW_ARCH_ENABLED
-- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
-    (const facebook::react::ObjCTurboModule::InitParams &)params
-{
-    return std::make_shared<facebook::react::NativeTestModuleSpecJSI>(params);
-}
-#endif
+// Note: New Architecture support disabled until codegen is properly configured
+// To enable, add codegenConfig to package.json and regenerate specs
 
 @end
 

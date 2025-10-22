@@ -43,6 +43,18 @@ RCT_EXTERN_METHOD(getConnectionState:(NSString *)deviceId
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 
+// Command Methods
+RCT_EXTERN_METHOD(sendCommands:(NSString *)commandString
+                  deviceId:(NSString *)deviceId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(offlineUnlock:(NSString *)key
+                  command:(NSString *)command
+                  deviceId:(NSString *)deviceId
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject)
+
 // Event Emitter Methods
 RCT_EXTERN_METHOD(addListener:(NSString *)eventName)
 
