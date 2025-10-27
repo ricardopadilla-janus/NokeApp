@@ -12,10 +12,18 @@ import {
 } from 'react-native';
 import { styles, getSignalStrength } from './styles';
 import NativeScanner, { BleDevice, FilterSettings } from '../../../modules/NativeScanner/js/index';
-import NokeAPI from '../../../modules/NativeScanner/ios/NokeAPI';
+import { useNokeAPI } from '../../hooks/useNokeAPI';
 import { NOKE_CREDENTIALS } from '../../config/nokeCredentials';
 
 export const NativeScanScreen: React.FC = () => {
+  // Noke API hook
+  const {
+    isLoggedIn,
+    userData,
+    login: loginToAPI,
+    getUnlockCommands,
+  } = useNokeAPI();
+
   const [isScanning, setIsScanning] = useState(false);
   const [devices, setDevices] = useState<BleDevice[]>([]);
   const [bluetoothState, setBluetoothState] = useState<string>('unknown');
@@ -33,8 +41,7 @@ export const NativeScanScreen: React.FC = () => {
   const [unlockStatus, setUnlockStatus] = useState<Record<string, string>>({});
   const [isUnlocking, setIsUnlocking] = useState<Record<string, boolean>>({});
   
-  // Noke API state
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // Device tracking
   const [deviceMacAddresses, setDeviceMacAddresses] = useState<Record<string, string>>({});
   const [deviceSessions, setDeviceSessions] = useState<Record<string, string>>({});
   
@@ -42,8 +49,8 @@ export const NativeScanScreen: React.FC = () => {
   const sessionInitialized = useRef(false);
 
   useEffect(() => {
-    // Login when entering this tab
-    if (!sessionInitialized.current) {
+    // Login when entering this tab if not already logged in
+    if (!sessionInitialized.current && !isLoggedIn) {
       initNokeSession();
       sessionInitialized.current = true;
     }
@@ -311,7 +318,7 @@ export const NativeScanScreen: React.FC = () => {
       console.log('[NativeScan] Using session:', session.substring(0, 16) + '...');
       
       setUnlockStatus((prev) => ({ ...prev, [deviceId]: '📡 Getting unlock commands...' }));
-      const unlockData = await NokeAPI.getUnlockCommands(macAddress, session);
+      const unlockData = await getUnlockCommands(macAddress, session);
       
       console.log('[NativeScan] Got unlock commands:', unlockData.commands?.length || 0);
       setUnlockStatus((prev) => ({ ...prev, [deviceId]: '🔐 Sending unlock...' }));
@@ -397,25 +404,16 @@ export const NativeScanScreen: React.FC = () => {
     try {
       console.log('[NativeScan] Initializing Noke session...');
       
-      // If force login, skip restore and do fresh login
-      if (!forceLogin) {
-        // Try to restore existing session
-        const session = await NokeAPI.restoreSession();
-        if (session) {
-          console.log('[NativeScan] ✅ Session restored:', session.email);
-          setIsLoggedIn(true);
-          return;
-        }
+      // If already logged in and not forcing, return
+      if (isLoggedIn && !forceLogin) {
+        console.log('[NativeScan] Already logged in');
+        return;
       }
       
-      // No existing session or forced, perform fresh login
-      console.log('[NativeScan] Performing fresh login...');
+      // Perform login
+      console.log('[NativeScan] Performing login...');
       
-      // Set environment
-      await NokeAPI.setEnvironment(NOKE_CREDENTIALS.environment);
-      
-      // Login
-      const loginResult = await NokeAPI.login({
+      const loginResult = await loginToAPI({
         email: NOKE_CREDENTIALS.email,
         password: NOKE_CREDENTIALS.password,
         companyUUID: NOKE_CREDENTIALS.companyUUID,
@@ -424,7 +422,6 @@ export const NativeScanScreen: React.FC = () => {
       });
       
       console.log('[NativeScan] ✅ Logged in:', loginResult.userUUID);
-      setIsLoggedIn(true);
       
     } catch (error: any) {
       console.error('[NativeScan] ❌ Failed to initialize session:', error);
