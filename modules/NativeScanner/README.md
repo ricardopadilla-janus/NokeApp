@@ -1,13 +1,14 @@
-# NativeScanner & NokeAPI - Módulo BLE Nativo
+# NativeScanner - Módulo BLE Nativo
 
 Módulo nativo de React Native para escaneo BLE y comunicación con candados Noke.
 
-**Nota:** Este módulo solo implementa **Unlock Online**. El candado se cierra automáticamente por firmware.
+**Nota:** Este módulo solo implementa **operaciones BLE**. Las llamadas HTTP se manejan en React Native TypeScript.
 
 **Features destacados:**
-- ✅ Auto re-login cuando el token expira
-- ✅ Logging completo con cURL commands para debugging
-- ✅ Manejo robusto de errores de red y API
+- ✅ Escaneo BLE nativo con CoreBluetooth (iOS) y BluetoothGatt (Android)
+- ✅ Conexión y comunicación directa con candados Noke
+- ✅ Eventos en tiempo real para feedback de UI
+- ✅ Manejo robusto de errores de conexión BLE
 
 ## 📂 Estructura
 
@@ -16,16 +17,12 @@ modules/NativeScanner/
 ├── android/
 │   ├── src/main/java/com/nativescanner/
 │   │   ├── NativeScannerModule.kt      # Módulo BLE (Android Bluetooth)
-│   │   ├── NativeScannerPackage.kt     # Package registration
-│   │   ├── NokeAPIClient.kt            # Cliente HTTP Noke API
-│   │   └── NokeAPIClientPackage.kt     # Package registration
+│   │   └── NativeScannerPackage.kt     # Package registration
 │   └── build.gradle                     # Configuración Gradle
 ├── ios/
 │   ├── NativeScanner.swift          # Módulo BLE (CoreBluetooth)
 │   ├── NativeScannerModule.m        # Bridge Objective-C
-│   ├── NokeAPIClient.swift          # Cliente HTTP Noke API
-│   ├── NokeAPIClientModule.m        # Bridge Objective-C
-│   └── NokeAPI.js                   # Wrapper JavaScript
+│   └── NativeScanner-Bridging-Header.h # Header para Swift
 └── js/
     └── index.ts                     # TypeScript definitions
 ```
@@ -79,59 +76,29 @@ NativeScanner.addListener('CommandResponse', (event) => {
 });
 ```
 
-### 2. NokeAPIClient (HTTP Client)
+### 2. HTTP API (React Native)
 
-Cliente HTTP Swift para Noke REST API.
+Las llamadas HTTP ahora se manejan en React Native TypeScript:
 
-**Métodos:**
-
-```typescript
-// Login
-NokeAPIClient.login(
-  email: string,
-  password: string,
-  companyUUID: string,
-  siteUUID: string,
-  deviceId: string
-): Promise<LoginResult>
-
-// Get unlock commands
-NokeAPIClient.getUnlockCommands(
-  mac: string,
-  session: string
-): Promise<{ commandString: string, commands: string[] }>
-
-// Get all offline keys
-NokeAPIClient.getAllOfflineKeys(
-  userUUID: string,
-  companyUUID: string,
-  siteUUID: string
-): Promise<OfflineKey[]>
-```
-
-### 3. NokeAPI.js (Wrapper)
-
-Singleton wrapper JavaScript que facilita el uso del cliente HTTP.
+**Archivos:**
+- `src/services/NokeAPIService.ts` - Cliente HTTP con `fetch()`
+- `src/hooks/useNokeAPI.ts` - Hook React para gestión de estado
 
 **Ejemplo de uso:**
 
-```javascript
-import NokeAPI from '../modules/NativeScanner/ios/NokeAPI';
+```typescript
+import { useNokeAPI } from '../hooks/useNokeAPI';
 
-// Singleton instance
-const api = NokeAPI.getInstance();
+const { login, getUnlockCommands, isLoggedIn } = useNokeAPI();
 
 // Login
-await api.login(email, password, companyUUID, siteUUID, deviceUUID);
-
-// Auto-restore session
-await api.restoreSession();
+await login({ email, password, companyUUID, siteUUID });
 
 // Get unlock commands (online)
-const { commandString } = await api.getUnlockCommands(macAddress, session);
+const unlockData = await getUnlockCommands(macAddress, session);
 
 // Send to lock via BLE
-await NativeScanner.sendCommands(commandString, deviceId);
+await NativeScanner.sendCommands(unlockData.commandString, deviceId);
 ```
 
 ## 🚀 Uso Rápido
@@ -162,7 +129,9 @@ await NativeScanner.connect(deviceId);
 ### 2. Unlock Online
 
 ```typescript
-import NokeAPI from './modules/NativeScanner/ios/NokeAPI';
+import { useNokeAPI } from '../hooks/useNokeAPI';
+
+const { getUnlockCommands } = useNokeAPI();
 
 // Get MAC from device name
 const mac = extractMacFromName(device.name); // "D0:1F:A6:44:B3:6F"
@@ -171,10 +140,10 @@ const mac = extractMacFromName(device.name); // "D0:1F:A6:44:B3:6F"
 const session = deviceSessions[deviceId]; // "E7030000FA51E3D5..."
 
 // Get unlock command from server
-const { commandString } = await NokeAPI.getUnlockCommands(mac, session);
+const unlockData = await getUnlockCommands(mac, session);
 
 // Send to lock
-await NativeScanner.sendCommands(commandString, deviceId);
+await NativeScanner.sendCommands(unlockData.commandString, deviceId);
 
 // The lock will automatically close after a few seconds (firmware timer)
 ```

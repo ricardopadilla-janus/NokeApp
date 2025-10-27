@@ -4,23 +4,20 @@ Development project for creating a React Native SDK that enables third-party app
 
 ---
 
-## 🔓 **NEW: Online Unlock Implementation**
+## 🔓 **NEW: React Native API Migration**
 
 **Branch:** `feature/lock-unlock`
 
-✅ **Sistema completo de Unlock Online implementado para iOS y Android**
+✅ **Migración completa de NokeAPI a React Native**
 
-Este branch incluye la implementación completa de unlock de candados Noke usando:
-- **Plataformas:** iOS (Swift) + Android (Kotlin) - Paridad completa
-- BLE (Bluetooth Low Energy) para comunicación directa con candados
-- Noke REST API para obtención de comandos encriptados
-- Auto-login al entrar al tab + Auto re-login cuando el token expira
-- Extracción de MAC address (desde nombre en iOS, desde advertising en Android)
-- UI completa con feedback visual en tiempo real
-- Auto-cierre del candado (función del firmware)
-- Manejo robusto de errores con recuperación automática
+Este branch incluye la migración completa del sistema de unlock de candados Noke:
+- **HTTP API:** Migrado de código nativo (Swift/Kotlin) a React Native TypeScript
+- **BLE Operations:** Mantenidas nativas para máximo rendimiento
+- **Arquitectura:** Solo módulos nativos necesarios (BLE), HTTP en JavaScript
+- **Beneficios:** ~1000 líneas menos de código duplicado, mantenimiento simplificado
+- **Compatibilidad:** iOS y Android con la misma implementación HTTP
 
-📖 **Ver documentación completa:** [`NOKE_ONLINE_UNLOCK.md`](./NOKE_ONLINE_UNLOCK.md)
+📖 **Ver documentación completa:** [`NOKE_API_INTEGRATION.md`](./NOKE_API_INTEGRATION.md)
 
 **Quick Start:**
 
@@ -37,9 +34,9 @@ Android:
 4. Ir al tab "Native" → Escanear → Conectar → Unlock
 
 📋 **Documentación Técnica:**
-- [`NOKE_ONLINE_UNLOCK.md`](./NOKE_ONLINE_UNLOCK.md) - Guía completa de funcionalidad
-- [`IOS_VS_ANDROID_BLE.md`](./IOS_VS_ANDROID_BLE.md) - Análisis comparativo iOS vs Android
-- [`ANDROID_BLE_SOLUTION.md`](./ANDROID_BLE_SOLUTION.md) - Detalles técnicos de Android
+- [`NOKE_API_INTEGRATION.md`](./NOKE_API_INTEGRATION.md) - Guía completa de migración
+- [`NOKE_CREDENTIALS_GUIDE.md`](./NOKE_CREDENTIALS_GUIDE.md) - Configuración de credenciales
+- [`UNLOCK_TESTING_GUIDE.md`](./UNLOCK_TESTING_GUIDE.md) - Guía de pruebas
 
 ---
 
@@ -69,9 +66,9 @@ This project serves as:
 - ✅ Signal quality indicators
 
 ### Native Module Infrastructure
-- ✅ Turbo Module support (New Architecture)
-- ✅ Legacy Bridge support (Old Architecture)
-- ✅ Hybrid code - works with both automatically
+- ✅ Legacy Bridge support (React Native 0.81)
+- ✅ BLE-only native modules (CoreBluetooth/BluetoothGatt)
+- ✅ HTTP API migrated to React Native TypeScript
 - ✅ Event-driven native-to-JS communication
 
 ## 🚀 Getting Started
@@ -207,21 +204,18 @@ Full BLE module with Noke protocol implementation.
 
 ## 🔄 Architecture Support
 
-This project supports **both React Native architectures**:
+This project uses **Legacy Bridge Architecture**:
 
-### New Architecture (Current) ✅
-- **Active**: `newArchEnabled=true`
-- **Uses**: Turbo Modules (JSI)
-- **Performance**: Faster (direct native calls)
-- **Recommended**: For new projects
-
-### Old Architecture (Compatible) ✅
-- **Compatible**: Can switch via config
-- **Uses**: Legacy Bridge
+### Legacy Bridge (Current) ✅
+- **Active**: React Native 0.81 with Legacy Bridge
+- **Uses**: RCTBridge for native communication
 - **Performance**: Good (serialized calls)
-- **Reason**: Client compatibility
+- **Reason**: Stability and compatibility
 
-**How to switch**: See `SWITCH_TO_OLD_ARCHITECTURE.md`
+### HTTP API Migration ✅
+- **HTTP Calls**: Migrated from native to React Native TypeScript
+- **BLE Operations**: Remain native for performance
+- **Benefits**: Single source of truth, easier maintenance
 
 ---
 
@@ -315,7 +309,7 @@ import { NokeScanScreen } from '@noke/ui-components';
 
 ## 🔧 Technologies Used
 
-- **React Native**: 0.82 (New Architecture enabled)
+- **React Native**: 0.81 (Legacy Bridge)
 - **TypeScript**: 5.8+
 - **React Navigation**: Bottom tabs
 - **BLE Library**: react-native-ble-manager (current)

@@ -73,5 +73,12 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
-# Noke Credentials (DO NOT COMMIT TO GIT)
+# 🔐 NOKKE CREDENTIALS - NEVER COMMIT
+# These files contain sensitive credentials and should never be committed to the repository
 src/config/nokeCredentials.ts
+src/examples/NokeAPIExamples.tsx
+
+# 🔐 NOKKE CREDENTIALS TEMPLATES - SAFE TO COMMIT
+# These are template files with placeholder credentials, safe to commit
+!src/config/nokeCredentials.template.ts
+!src/examples/NokeAPIExamples.template.tsx
