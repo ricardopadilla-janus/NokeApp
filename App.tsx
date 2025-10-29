@@ -13,6 +13,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import HomeScreen from './src/screens/Home/HomeScreen';
 import SettingsScreen from './src/screens/Settings/SettingsScreen';
 import NativeScanScreen from './src/screens/NativeScan/NativeScanScreen';
+import CoreScanScreen from './src/screens/CoreScan/CoreScanScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -41,6 +42,14 @@ function App() {
             options={{
               title: 'Scan Devices',
               tabBarLabel: 'Home',
+            }}
+          />
+          <Tab.Screen
+            name="CoreScan"
+            component={CoreScanScreen}
+            options={{
+              title: 'Core Scan',
+              tabBarLabel: 'Core',
             }}
           />
           <Tab.Screen
