@@ -14,15 +14,19 @@ import { styles, getSignalStrength } from './styles';
 import NativeScanner, { BleDevice, FilterSettings } from '../../../modules/NativeScanner/js/index';
 import { useNokeAPI } from '../../hooks/useNokeAPI';
 import { NOKE_CREDENTIALS } from '../../config/nokeCredentials';
+import { useOfflineUnlock } from './hooks/useOfflineUnlock';
 
 export const NativeScanScreen: React.FC = () => {
-  // Noke API hook
+  // Noke API hook (for online unlock)
   const {
     isLoggedIn,
     userData,
     login: loginToAPI,
     getUnlockCommands,
   } = useNokeAPI();
+
+  // Offline unlock hook
+  const offlineUnlock = useOfflineUnlock();
 
   const [isScanning, setIsScanning] = useState(false);
   const [devices, setDevices] = useState<BleDevice[]>([]);
@@ -47,6 +51,7 @@ export const NativeScanScreen: React.FC = () => {
   
   const listenersRef = useRef<any[]>([]);
   const sessionInitialized = useRef(false);
+  const offlineKeysFetched = useRef(false);
 
   useEffect(() => {
     // Login when entering this tab if not already logged in
@@ -55,12 +60,21 @@ export const NativeScanScreen: React.FC = () => {
       sessionInitialized.current = true;
     }
     
+    // Fetch offline keys when logged in
+    if (isLoggedIn && !offlineKeysFetched.current) {
+      console.log('🐛 Logged in, fetching offline keys...');
+      offlineUnlock.getOfflineKeys().catch((error) => {
+        console.error('🐛 Error fetching offline keys:', error);
+      });
+      offlineKeysFetched.current = true;
+    }
+    
     // Load current filter settings
     loadFilterSettings();
 
     // Setup event listeners
     const deviceListener = NativeScanner.onDeviceDiscovered((device: BleDevice) => {
-      console.log('[NativeScan] Device discovered:', device.name, device.id);
+      console.log('🐛 Device discovered:', device.name, device.id);
       
       // Store MAC address if available (from advertising or device name)
       let macAddress = device.advertising?.macAddress;
@@ -77,7 +91,7 @@ export const NativeScanScreen: React.FC = () => {
       
       if (macAddress) {
         setDeviceMacAddresses((prev) => ({ ...prev, [device.id]: macAddress! }));
-        console.log(`[NativeScan] MAC stored: ${macAddress} for ${device.id} (${device.name})`);
+        console.log(`🐛 MAC stored: ${macAddress} for ${device.id} (${device.name})`);
       }
       
       setDevices((prev) => {
@@ -91,26 +105,26 @@ export const NativeScanScreen: React.FC = () => {
     });
 
     const stopListener = NativeScanner.onScanStopped(() => {
-      console.log('[NativeScan] Scan stopped');
+      console.log('🐛 Scan stopped');
       setIsScanning(false);
     });
 
     const stateListener = NativeScanner.onBluetoothStateChanged((state: { state: string }) => {
-      console.log('[NativeScan] Bluetooth state:', state.state);
+      console.log('🐛 Bluetooth state:', state.state);
       setBluetoothState(state.state);
     });
 
     const connectedListener = NativeScanner.onDeviceConnected((device) => {
-      console.log('[NativeScan] Device connected:', device.name);
+      console.log('🐛 Device connected:', device.name);
       setDevices((prev) =>
         prev.map((d) => (d.id === device.id ? { ...d, isConnected: true, isConnecting: false } : d))
       );
     });
 
     const disconnectedListener = NativeScanner.onDeviceDisconnected((device) => {
-      console.log('[NativeScan] Device disconnected:', device.name);
+      console.log('🐛 Device disconnected:', device.name);
       if (device.error) {
-        console.warn('[NativeScan] Disconnection error:', device.error);
+        console.warn('🐛 Disconnection error:', device.error);
       }
       setDevices((prev) =>
         prev.map((d) => (d.id === device.id ? { ...d, isConnected: false, isConnecting: false } : d))
@@ -118,7 +132,7 @@ export const NativeScanScreen: React.FC = () => {
     });
 
     const connectionErrorListener = NativeScanner.onDeviceConnectionError((device) => {
-      console.error('[NativeScan] Connection error:', device.error);
+      console.error('🐛 Connection error:', device.error);
       setDevices((prev) =>
         prev.map((d) => (d.id === device.id ? { ...d, isConnected: false, isConnecting: false } : d))
       );
@@ -126,35 +140,35 @@ export const NativeScanScreen: React.FC = () => {
 
     // Unlock event listeners
     const servicesDiscoveredListener = NativeScanner.onServicesDiscovered((event) => {
-      console.log('[NativeScan] Services discovered:', event.servicesCount);
+      console.log('🐛 Services discovered:', event.servicesCount);
       setUnlockStatus((prev) => ({ ...prev, [event.id]: '🔍 Services discovered...' }));
     });
 
     const characteristicsReadyListener = NativeScanner.onCharacteristicsReady((event) => {
-      console.log('[NativeScan] ✅ Characteristics ready for device:', event.id);
+      console.log('🐛 ✅ Characteristics ready for device:', event.id);
       setCharacteristicsReady((prev) => ({ ...prev, [event.id]: true }));
       setUnlockStatus((prev) => ({ ...prev, [event.id]: '✅ Ready to unlock' }));
     });
 
     const sessionReadyListener = NativeScanner.onSessionReady((event) => {
-      console.log('[NativeScan] 🔑 Session ready for device:', event.id);
-      console.log('[NativeScan]    Session:', event.session);
+      console.log('🐛 🔑 Session ready for device:', event.id);
+      console.log('🐛    Session:', event.session);
       setDeviceSessions((prev) => ({ ...prev, [event.id]: event.session }));
       setUnlockStatus((prev) => ({ ...prev, [event.id]: '🔑 Session ready - Can unlock' }));
     });
 
     const commandResponseListener = NativeScanner.onCommandResponse((event) => {
-      console.log('[NativeScan] Command response:', event.response, event.responseType);
+      console.log('🐛 Command response:', event.response, event.responseType);
     });
 
     const unlockSuccessListener = NativeScanner.onUnlockSuccess((event) => {
-      console.log('[NativeScan] 🎉 UNLOCK SUCCESS!', event);
+      console.log('🐛 🎉 UNLOCK SUCCESS!', event);
       setUnlockStatus((prev) => ({ ...prev, [selectedDeviceId || '']: '🎉 Unlock Successful!' }));
       setIsUnlocking((prev) => ({ ...prev, [selectedDeviceId || '']: false }));
     });
 
     const unlockFailedListener = NativeScanner.onUnlockFailed((event) => {
-      console.error('[NativeScan] ❌ UNLOCK FAILED:', event.error);
+      console.error('🐛 ❌ UNLOCK FAILED:', event.error);
       setUnlockStatus((prev) => ({ ...prev, [selectedDeviceId || '']: `❌ Failed: ${event.error}` }));
       setIsUnlocking((prev) => ({ ...prev, [selectedDeviceId || '']: false }));
     });
@@ -183,9 +197,9 @@ export const NativeScanScreen: React.FC = () => {
     try {
       const settings = await NativeScanner.getFilterSettings();
       setFilterSettings(settings);
-      console.log('[NativeScan] Current filter settings:', settings);
+      console.log('🐛 Current filter settings:', settings);
     } catch (error) {
-      console.error('[NativeScan] Error loading filter settings:', error);
+      console.error('🐛 Error loading filter settings:', error);
     }
   };
 
@@ -194,9 +208,9 @@ export const NativeScanScreen: React.FC = () => {
       setDevices([]);
       setIsScanning(true);
       await NativeScanner.startScan(10); // 10 second scan
-      console.log('[NativeScan] Scan started');
+      console.log('🐛 Scan started');
     } catch (error) {
-      console.error('[NativeScan] Error starting scan:', error);
+      console.error('🐛 Error starting scan:', error);
       setIsScanning(false);
     }
   };
@@ -205,9 +219,9 @@ export const NativeScanScreen: React.FC = () => {
     try {
       await NativeScanner.stopScan();
       setIsScanning(false);
-      console.log('[NativeScan] Scan stopped manually');
+      console.log('🐛 Scan stopped manually');
     } catch (error) {
-      console.error('[NativeScan] Error stopping scan:', error);
+      console.error('🐛 Error stopping scan:', error);
     }
   };
 
@@ -216,9 +230,9 @@ export const NativeScanScreen: React.FC = () => {
       const newValue = !filterSettings.useServiceUUIDFilter;
       await NativeScanner.setServiceUUIDFilter(newValue);
       setFilterSettings((prev) => ({ ...prev, useServiceUUIDFilter: newValue }));
-      console.log('[NativeScan] Service UUID filter:', newValue ? 'ON (Only Noke)' : 'OFF (All BLE)');
+      console.log('🐛 Service UUID filter:', newValue ? 'ON (Only Noke)' : 'OFF (All BLE)');
     } catch (error) {
-      console.error('[NativeScan] Error toggling Service UUID filter:', error);
+      console.error('🐛 Error toggling Service UUID filter:', error);
     }
   };
 
@@ -227,9 +241,9 @@ export const NativeScanScreen: React.FC = () => {
       const newValue = !filterSettings.filterNokeOnly;
       await NativeScanner.setFilterNokeOnly(newValue);
       setFilterSettings((prev) => ({ ...prev, filterNokeOnly: newValue }));
-      console.log('[NativeScan] Noke name filter:', newValue ? 'ON' : 'OFF');
+      console.log('🐛 Noke name filter:', newValue ? 'ON' : 'OFF');
     } catch (error) {
-      console.error('[NativeScan] Error toggling Noke filter:', error);
+      console.error('🐛 Error toggling Noke filter:', error);
     }
   };
 
@@ -244,21 +258,21 @@ export const NativeScanScreen: React.FC = () => {
       
       await NativeScanner.setRSSIThreshold(boundedThreshold);
       setFilterSettings((prev) => ({ ...prev, rssiThreshold: boundedThreshold }));
-      console.log('[NativeScan] RSSI threshold set to:', boundedThreshold, 'dBm');
+      console.log('🐛 RSSI threshold set to:', boundedThreshold, 'dBm');
     } catch (error) {
-      console.error('[NativeScan] Error changing RSSI threshold:', error);
+      console.error('🐛 Error changing RSSI threshold:', error);
     }
   };
 
   const handleConnect = async (deviceId: string) => {
     try {
-      console.log('[NativeScan] Connecting to device:', deviceId);
+      console.log('🐛 Connecting to device:', deviceId);
       setDevices((prev) =>
         prev.map((d) => (d.id === deviceId ? { ...d, isConnecting: true } : d))
       );
       await NativeScanner.connect(deviceId);
     } catch (error) {
-      console.error('[NativeScan] Connection failed:', error);
+      console.error('🐛 Connection failed:', error);
       setDevices((prev) =>
         prev.map((d) => (d.id === deviceId ? { ...d, isConnecting: false } : d))
       );
@@ -267,7 +281,7 @@ export const NativeScanScreen: React.FC = () => {
 
   const handleDisconnect = async (deviceId: string) => {
     try {
-      console.log('[NativeScan] Disconnecting from device:', deviceId);
+      console.log('🐛 Disconnecting from device:', deviceId);
       await NativeScanner.disconnect(deviceId);
       // Clear unlock state for this device
       setCharacteristicsReady((prev) => {
@@ -284,13 +298,13 @@ export const NativeScanScreen: React.FC = () => {
         setSelectedDeviceId(null);
       }
     } catch (error) {
-      console.error('[NativeScan] Disconnection failed:', error);
+      console.error('🐛 Disconnection failed:', error);
     }
   };
 
-  const handleUnlock = async (deviceId: string) => {
+  const handleOnlineUnlock = async (deviceId: string) => {
     try {
-      console.log('[NativeScan] Starting unlock for device:', deviceId);
+      console.log('🐛 Starting unlock for device:', deviceId);
       setIsUnlocking((prev) => ({ ...prev, [deviceId]: true }));
       setUnlockStatus((prev) => ({ ...prev, [deviceId]: '🔓 Unlocking...' }));
       
@@ -301,7 +315,7 @@ export const NativeScanScreen: React.FC = () => {
       }
       
       const macAddress = getMacAddress(device);
-      console.log(`[NativeScan] Extracted MAC: ${macAddress} from device: ${device.name}`);
+      console.log(`🐛 Extracted MAC: ${macAddress} from device: ${device.name}`);
       
       if (!macAddress) {
         throw new Error('No MAC address found for device');
@@ -314,19 +328,22 @@ export const NativeScanScreen: React.FC = () => {
         throw new Error('No session available. Wait for session to be read from device.');
       }
       
-      console.log('[NativeScan] Getting unlock commands for MAC:', macAddress);
-      console.log('[NativeScan] Using session:', session.substring(0, 16) + '...');
+      console.log('🐛 Getting unlock commands for MAC:', macAddress);
+      console.log('🐛 Using session:', session.substring(0, 16) + '...');
       
       setUnlockStatus((prev) => ({ ...prev, [deviceId]: '📡 Getting unlock commands...' }));
       const unlockData = await getUnlockCommands(macAddress, session);
       
-      console.log('[NativeScan] Got unlock commands:', unlockData.commands?.length || 0);
+      console.log('🐛 Got unlock commands:', unlockData.commands?.length || 0);
+      console.log('🐛 🌐 ONLINE UNLOCK - Command from API:');
+      console.log('   Full command string:', unlockData.commandString);
+      console.log('   Individual commands:', unlockData.commands);
       setUnlockStatus((prev) => ({ ...prev, [deviceId]: '🔐 Sending unlock...' }));
       
       // Send commands to device
       await NativeScanner.sendCommands(unlockData.commandString, deviceId);
       
-      console.log('[NativeScan] Unlock command sent, waiting for response...');
+      console.log('🐛 Unlock command sent, waiting for response...');
       setUnlockStatus((prev) => ({ ...prev, [deviceId]: '⏳ Waiting for response...' }));
       
       // Auto-reset after 5 seconds
@@ -341,11 +358,11 @@ export const NativeScanScreen: React.FC = () => {
       }, 5000);
       
     } catch (error: any) {
-      console.error('[NativeScan] Unlock failed:', error);
+      console.error('🐛 Unlock failed:', error);
       
       // If token expired, try to re-login automatically
       if (error.message?.includes('Session expired')) {
-        console.log('[NativeScan] Token expired, attempting automatic re-login...');
+        console.log('🐛 Token expired, attempting automatic re-login...');
         setUnlockStatus((prev) => ({ ...prev, [deviceId]: '🔄 Re-logging in...' }));
         
         try {
@@ -361,6 +378,58 @@ export const NativeScanScreen: React.FC = () => {
         setUnlockStatus((prev) => ({ ...prev, [deviceId]: `❌ Error: ${error.message}` }));
         setIsUnlocking((prev) => ({ ...prev, [deviceId]: false }));
       }
+    }
+  };
+
+  const handleOfflineUnlock = async (deviceId: string, macAddress: string) => {
+    try {
+      console.log('🐛 Starting offline unlock for device:', deviceId, 'MAC:', macAddress);
+      setIsUnlocking((prev) => ({ ...prev, [deviceId]: true }));
+      setUnlockStatus((prev) => ({ ...prev, [deviceId]: '📴 Offline unlocking...' }));
+      
+      // Get offline key for this device
+      const offlineKeyData = offlineUnlock.offlineKeys[macAddress];
+      
+      if (!offlineKeyData) {
+        throw new Error('No offline key available. Please refresh offline keys.');
+      }
+      
+      console.log('🐛 Found offline key for:', offlineKeyData.name);
+      console.log('🐛 OfflineKey:', offlineKeyData.offlineKey);
+      console.log('🐛 UnlockCmd:', offlineKeyData.unlockCmd);
+      console.log('🐛 OfflineKey Expiration:', offlineKeyData.offlineExpiration);
+      console.log('🐛 Scheduled UnlockCmd:', offlineKeyData.scheduledUnlockCmd);
+      
+      setUnlockStatus((prev) => ({ ...prev, [deviceId]: '📴 Sending offline unlock...' }));
+      
+      // Device must be connected for offline unlock
+      if (!devices.find(d => d.id === deviceId)?.isConnected) {
+        throw new Error('Device must be connected for offline unlock');
+      }
+      
+      // Use scheduledUnlockCmd for offline unlock
+      let unlockCommand = offlineKeyData.scheduledUnlockCmd || offlineKeyData.unlockCmd;
+      
+      if (!unlockCommand) {
+        throw new Error('No unlock command available (neither scheduledUnlockCmd nor unlockCmd is present)');
+      }
+      
+      console.log('🐛 Using offline unlock command:', unlockCommand);
+      
+      // Use offlineUnlock to encrypt with offlineKey + session
+      console.log('🐛 🔄 Calling offlineUnlock to encrypt');
+      setUnlockStatus((prev) => ({ ...prev, [deviceId]: '📴 Encrypting and sending...' }));
+      
+      await NativeScanner.offlineUnlock(offlineKeyData.offlineKey, unlockCommand, deviceId);
+      
+      console.log('🐛 ✅ Offline unlock command sent');
+      setUnlockStatus((prev) => ({ ...prev, [deviceId]: '✅ Offline unlock sent' }));
+      
+      setIsUnlocking((prev) => ({ ...prev, [deviceId]: false }));
+    } catch (error: any) {
+      console.error('🐛 Offline unlock failed:', error);
+      setUnlockStatus((prev) => ({ ...prev, [deviceId]: `❌ ${error.message}` }));
+      setIsUnlocking((prev) => ({ ...prev, [deviceId]: false }));
     }
   };
 
@@ -386,14 +455,14 @@ export const NativeScanScreen: React.FC = () => {
 
   const handleSendCommand = async (deviceId: string, command: string) => {
     try {
-      console.log('[NativeScan] Sending custom command:', command);
+      console.log('🐛 Sending custom command:', command);
       setUnlockStatus((prev) => ({ ...prev, [deviceId]: '📤 Sending command...' }));
       
       await NativeScanner.sendCommands(command, deviceId);
-      console.log('[NativeScan] Command sent');
+      console.log('🐛 Command sent');
       setUnlockStatus((prev) => ({ ...prev, [deviceId]: '✅ Command sent' }));
     } catch (error: any) {
-      console.error('[NativeScan] Send command failed:', error);
+      console.error('🐛 Send command failed:', error);
       setUnlockStatus((prev) => ({ ...prev, [deviceId]: `❌ Error: ${error.message}` }));
     }
   };
@@ -402,16 +471,16 @@ export const NativeScanScreen: React.FC = () => {
 
   const initNokeSession = async (forceLogin = false) => {
     try {
-      console.log('[NativeScan] Initializing Noke session...');
+      console.log('🐛 Initializing Noke session...');
       
       // If already logged in and not forcing, return
       if (isLoggedIn && !forceLogin) {
-        console.log('[NativeScan] Already logged in');
+        console.log('🐛 Already logged in');
         return;
       }
       
       // Perform login
-      console.log('[NativeScan] Performing login...');
+      console.log('🐛 Performing login...');
       
       const loginResult = await loginToAPI({
         email: NOKE_CREDENTIALS.email,
@@ -421,10 +490,10 @@ export const NativeScanScreen: React.FC = () => {
         deviceId: NOKE_CREDENTIALS.deviceId || undefined,
       });
       
-      console.log('[NativeScan] ✅ Logged in:', loginResult.userUUID);
+      console.log('🐛 ✅ Logged in:', loginResult.userUUID);
       
     } catch (error: any) {
-      console.error('[NativeScan] ❌ Failed to initialize session:', error);
+      console.error('🐛 ❌ Failed to initialize session:', error);
       Alert.alert('Login Failed', `Could not login to Noke API: ${error.message}`);
     }
   };
@@ -457,6 +526,9 @@ export const NativeScanScreen: React.FC = () => {
     const isReady = characteristicsReady[item.id];
     const status = unlockStatus[item.id];
     const isDeviceUnlocking = isUnlocking[item.id];
+    
+    // Check if device has offline key available
+    const hasOfflineKey = macAddress && offlineUnlock.offlineKeys[macAddress] !== undefined;
     
     return (
       <View style={styles.deviceItem}>
@@ -506,20 +578,33 @@ export const NativeScanScreen: React.FC = () => {
             </View>
           )}
 
-          {/* Unlock Control - Show when connected */}
+          {/* Online Unlock Control - Show when connected */}
           {item.isConnected && isReady && (
             <TouchableOpacity
-              style={[styles.unlockButton, isDeviceUnlocking && styles.unlockingButton]}
-              onPress={() => handleUnlock(item.id)}
+              style={[styles.onlineUnlockButton, isDeviceUnlocking && styles.unlockingButton]}
+              onPress={() => handleOnlineUnlock(item.id)}
               disabled={isDeviceUnlocking}
             >
               {isDeviceUnlocking ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <Text style={styles.unlockButtonText}>
-                  🔓 Unlock
+                  🌐 Online Unlock
                 </Text>
               )}
+            </TouchableOpacity>
+          )}
+          
+          {/* Offline Unlock Control - Show when device has offline key */}
+          {hasOfflineKey && (
+            <TouchableOpacity
+              style={[styles.offlineUnlockButton, isDeviceUnlocking && styles.unlockingButton]}
+              onPress={() => handleOfflineUnlock(item.id, macAddress)}
+              disabled={isDeviceUnlocking}
+            >
+              <Text style={styles.unlockButtonText}>
+                📴 Offline Unlock
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -549,6 +634,56 @@ export const NativeScanScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.stateText}>Bluetooth: {bluetoothState}</Text>
+      </View>
+
+      {/* Offline Keys Status Card */}
+      <View style={styles.offlineKeysCard}>
+        <View style={styles.cardHeader}>
+          <View style={styles.statusRow}>
+            <Text style={styles.cardTitle}>🔑 Offline Keys</Text>
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusText}>
+                {offlineUnlock.isLoading ? '⏳ Loading...' : `${Object.keys(offlineUnlock.offlineKeys).length} keys`}
+              </Text>
+            </View>
+          </View>
+          {offlineUnlock.error && (
+            <Text style={styles.errorText}>❌ {offlineUnlock.error}</Text>
+          )}
+        </View>
+        
+        <View style={styles.actionButtonsRow}>
+          <TouchableOpacity
+            style={[styles.primaryButton, offlineUnlock.isLoading && styles.buttonDisabled]}
+            onPress={offlineUnlock.getOfflineKeys}
+            disabled={offlineUnlock.isLoading}
+          >
+            <Text style={styles.primaryButtonText}>📥 Get Keys</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.secondaryButton, offlineUnlock.isLoading && styles.buttonDisabled]}
+            onPress={offlineUnlock.refreshOfflineKeys}
+            disabled={offlineUnlock.isLoading}
+          >
+            <Text style={styles.secondaryButtonText}>🔄 Refresh All</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.secondaryButton, offlineUnlock.isLoading && styles.buttonDisabled]}
+            onPress={() => {
+              const macs = Object.values(deviceMacAddresses);
+              if (macs.length > 0) {
+                offlineUnlock.refreshKeysForDevices(macs);
+              } else {
+                Alert.alert('No Devices', 'Connect to devices first to refresh their keys');
+              }
+            }}
+            disabled={offlineUnlock.isLoading}
+          >
+            <Text style={styles.secondaryButtonText}>📱 Connected</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Filter Controls - Collapsible */}

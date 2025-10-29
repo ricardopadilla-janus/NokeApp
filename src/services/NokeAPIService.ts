@@ -107,7 +107,7 @@ class NokeAPIService {
     // Log curl command
     this.logCurlCommand(url, method, body);
     
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
@@ -122,13 +122,18 @@ class NokeAPIService {
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    console.log(`[NokeAPIService] 📥 Response: ${response.status}`);
+    console.log(`[NokeAPIService] 📥 HTTP ${response.status}`);
 
     // Parse response
     const data = await response.json();
     
-    // Log response
-    console.log('[NokeAPIService] 📥 Response data:', JSON.stringify(data, null, 2));
+    // Log key response info
+    console.log(`[NokeAPIService] 📥 Response: ${data.result || 'unknown'} - ${data.message || 'no message'}`);
+    
+    // Log full response body
+    console.log('\n[NokeAPIService] 📦 Response Body:');
+    console.log(JSON.stringify(data, null, 2));
+    console.log('\n');
 
     // Check for errors
     if (!response.ok) {
@@ -149,17 +154,18 @@ class NokeAPIService {
     curlCommand += ` \\\n  -H 'Accept: application/json'`;
 
     if (this.authToken) {
-      curlCommand += ` \\\n  -H 'Authorization: Bearer ${this.authToken}'`;
+      curlCommand += ` \\\n  -H 'Authorization: Bearer ${this.authToken.substring(0, 50)}...'`; // Truncate token for readability
     }
 
     if (body) {
       curlCommand += ` \\\n  -d '${JSON.stringify(body)}'`;
     }
 
-    console.log('\n[NokeAPIService] 🔧 CURL COMMAND:');
-    console.log('─────────────────────────────────────────────────────────');
+    console.log('\n' + '═'.repeat(80));
+    console.log(`[NokeAPIService] 🔧 ${method} ${url}`);
+    console.log('═'.repeat(80));
     console.log(curlCommand);
-    console.log('─────────────────────────────────────────────────────────\n');
+    console.log('═'.repeat(80) + '\n');
   }
 
   // ========================================
@@ -309,7 +315,7 @@ class NokeAPIService {
         }
       }
 
-      console.log('[NokeAPIService] Fetching offline keys from API...');
+      console.log('[NokeAPIService] 🔑 Fetching offline keys from API...');
 
       const result = await this.performRequest('user/locks/', 'POST', {}, true);
 
@@ -319,6 +325,8 @@ class NokeAPIService {
       let devicesWithKeys = 0;
 
       if (result.data?.units) {
+        console.log(`[NokeAPIService] 📊 Processing ${result.data.units.length} units from API response`);
+        
         for (const unit of result.data.units) {
           const unitNumber = unit.name || '';
           const unitUUID = unit.uuid || '';
@@ -336,9 +344,20 @@ class NokeAPIService {
                 offlineKey = device.offlineKeyObj.offlineKey;
               }
 
-              const unlockCmd = device.unlockCmd;
+              // Get unlock command - prefer unlockCmd, fallback to scheduledUnlockCmd
+              let unlockCmd = device.unlockCmd;
+              if (!unlockCmd && device.scheduledUnlockCmd) {
+                unlockCmd = device.scheduledUnlockCmd;
+              }
               
-              if (offlineKey && unlockCmd) {
+              // Log raw values from API
+              console.log(`[API RAW] Device: ${device.name}`);
+              console.log(`[API RAW] offlineKey: ${device.offlineKey}`);
+              console.log(`[API RAW] offlineKeyObj.offlineKey: ${device.offlineKeyObj?.offlineKey}`);
+              console.log(`[API RAW] unlockCmd: ${device.unlockCmd}`);
+              console.log(`[API RAW] scheduledUnlockCmd: ${device.scheduledUnlockCmd}`);
+              
+              if (offlineKey) {
                 devicesWithKeys++;
                 
                 offlineKeys[mac] = {
@@ -346,7 +365,7 @@ class NokeAPIService {
                   name: device.name || 'Unknown',
                   uuid: device.uuid || '',
                   offlineKey,
-                  unlockCmd,
+                  unlockCmd: unlockCmd || '', // Can be empty, we'll use the offlineKey to generate commands
                   unitNumber,
                   unitUUID,
                   scheduledUnlockCmd: device.scheduledUnlockCmd,
@@ -355,13 +374,19 @@ class NokeAPIService {
                   temperature: device.temperature,
                   hwType: device.hwType,
                 };
+                
+                console.log(`[NokeAPIService] ✅ Added device ${device.name} (${mac}) with offlineKey`);
+              } else {
+                console.log(`[NokeAPIService] ⚠️  Device ${device.name} (${mac}): no offlineKey`);
               }
             }
           }
         }
       }
 
-      console.log(`[NokeAPIService] ✅ Offline keys obtained (${devicesWithKeys}/${totalDevices} devices)`);
+      console.log('\n' + '═'.repeat(80));
+      console.log(`[NokeAPIService] ✅ RESULT: ${devicesWithKeys}/${totalDevices} devices have offline keys`);
+      console.log('═'.repeat(80) + '\n');
 
       // Cache the result
       await AsyncStorage.setItem(STORAGE_KEYS.OFFLINE_KEYS, JSON.stringify(offlineKeys));
@@ -452,7 +477,8 @@ class NokeAPIService {
       console.error('[NokeAPIService] Error getting unlock commands:', error);
       
       // Clear session on token errors
-      if (error.message?.includes('Token') || error.message?.includes('token')) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Token') || errorMessage.includes('token')) {
         console.log('[NokeAPIService] Token expired, clearing session...');
         this.userData = null;
         this.authToken = null;
