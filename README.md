@@ -19,17 +19,26 @@ Este branch incluye la migración completa del sistema de unlock de candados Nok
 
 📖 **Ver documentación completa:** [`NOKE_API_INTEGRATION.md`](./NOKE_API_INTEGRATION.md)
 
-**Quick Start:**
+**Quick Start (Yarn + Bundler):**
 
 iOS:
 1. Configurar credenciales en `src/config/nokeCredentials.ts`
-2. `npm install && cd ios && pod install && cd ..`
-3. `npm run ios` (requiere dispositivo iOS físico)
+2. Instalar dependencias con Yarn y Pods con Bundler
+   ```bash
+   yarn install
+   cd ios
+   bundle exec pod install
+   cd ..
+   ```
+3. Ejecutar
+   ```bash
+   yarn ios
+   ```
 
 Android:
 1. Configurar credenciales en `src/config/nokeCredentials.ts`
-2. `npm install`
-3. `npm run android` (dispositivo Android o emulador con BLE)
+2. `yarn install`
+3. `yarn android` (dispositivo Android o emulador con BLE)
 
 4. Ir al tab "Native" → Escanear → Conectar → Unlock
 
@@ -88,21 +97,21 @@ This project serves as:
 git clone https://github.com/ricardopadilla-janus/NokeApp.git
 cd NokeApp
 
-# Install dependencies
-npm install
+# Install dependencies (Yarn)
+yarn install
 
-# iOS: Install pods
-cd ios && pod install && cd ..
+# iOS: Install pods with Bundler
+cd ios && bundle exec pod install && cd ..
 ```
 
 ### Running the App
 
 #### iOS
 ```bash
-npm run ios
+yarn ios
 # or
-npm start  # In one terminal
-npm run ios  # In another terminal
+yarn start  # In one terminal
+yarn ios    # In another terminal
 ```
 
 #### Android (Future)
