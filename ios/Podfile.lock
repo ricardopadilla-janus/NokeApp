@@ -2436,7 +2436,7 @@ PODS:
     - React-perflogger (= 0.82.0)
     - React-utils (= 0.82.0)
     - SocketRocket
-  - ReactNativeCore (0.1.3):
+  - ReactNativeCore (0.1.13):
     - boost
     - DoubleConversion
     - fast_float
@@ -2936,7 +2936,7 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: c5c4f5280e4ae0f9f4a739c64c4260fe0b3edaf1
   ReactCodegen: 374f1c9242fbdd673b460d358b33860c0cc9d926
   ReactCommon: 25c7f94aee74ddd93a8287756a8ac0830a309544
-  ReactNativeCore: fab55f21291bee43857f364c89f7c3e8783a20b0
+  ReactNativeCore: ad44e0e5b2f473bbe96c5f3cfe207e12af8bb2ae
   RNBleManager: 3c3d81a0662cfb3abc11d3dbc69bbfb07a6585b6
   RNCAsyncStorage: 29f0230e1a25f36c20b05f65e2eb8958d6526e82
   RNScreens: d821082c6dd1cb397cc0c98b026eeafaa68be479
